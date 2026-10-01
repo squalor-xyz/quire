@@ -273,8 +273,77 @@ Hello
         self.assertEqual(job.output, path.resolve().with_suffix(".pdf"))
         with self.assertRaises(SystemExit):
             quire.plan_job("sample", profile=None, cwd=self.root)
-        with self.assertRaises(SystemExit):
-            quire.plan_job(str(path), profile=None, letterhead=True, cwd=self.root)
+        for letterhead, confidential in ((True, False), (True, True)):
+            with self.subTest(letterhead=letterhead, confidential=confidential):
+                with self.assertRaises(SystemExit) as raised:
+                    quire.plan_job(
+                        str(path),
+                        profile=None,
+                        letterhead=letterhead,
+                        confidential=confidential,
+                        cwd=self.root,
+                    )
+                self.assertIn("letterhead", str(raised.exception))
+
+    def test_plain_confidential(self) -> None:
+        path = self.root / "plain.md"
+        text = "# Notes\n\nJust text.\n"
+        path.write_text(text, encoding="utf-8")
+        job = quire.plan_job(str(path), profile=None, confidential=True, cwd=self.root)
+        self.assertEqual(job.markdown.count("confidential-banner"), 1)
+        self.assertIn(quire.PLAIN_CONFIDENTIAL_BANNER, job.markdown)
+        self.assertLess(job.markdown.find("confidential-banner"), job.markdown.find("# Notes"))
+        self.assertIn("confidential: true", job.markdown.split("# Notes", 1)[0])
+        self.assertEqual(job.metadata["confidential"], "true")
+        self.assertEqual(job.css, [quire.PLAIN_CONFIDENTIAL_CSS])
+        self.assertTrue(quire.PLAIN_CONFIDENTIAL_CSS.is_file())
+        self.assertEqual(job.output, path.resolve().with_name("plain-confidential.pdf"))
+
+    def test_plain_confidential_skips_existing_banner(self) -> None:
+        path = self.root / "marked.md"
+        text = '<div class="confidential-banner">Already</div>\n\nHello\n'
+        path.write_text(text, encoding="utf-8")
+        job = quire.plan_job(str(path), profile=None, confidential=True, cwd=self.root)
+        self.assertEqual(job.markdown.count("confidential-banner"), 1)
+        self.assertNotIn(quire.PLAIN_CONFIDENTIAL_BANNER, job.markdown)
+
+    def test_plain_confidential_overrides(self) -> None:
+        path = self.root / "plain.md"
+        path.write_text("# Notes\n", encoding="utf-8")
+        css = self.root / "custom.css"
+        css.write_text("body { font-size: 12pt; }", encoding="utf-8")
+        intro = self.root / "intro.html"
+        intro.write_text("<p>Intro</p>", encoding="utf-8")
+
+        replaced = quire.plan_job(
+            str(path),
+            profile=None,
+            confidential=True,
+            css=[Path("custom.css")],
+            include_before=[Path("intro.html")],
+            cwd=self.root,
+        )
+        self.assertEqual(replaced.css, [css.resolve()])
+        self.assertIn("confidential-banner", replaced.markdown)
+        self.assertLess(
+            replaced.markdown.find("confidential-banner"),
+            replaced.markdown.find("Intro"),
+        )
+
+        bare = quire.plan_job(
+            str(path), profile=None, confidential=True, no_css=True, cwd=self.root,
+        )
+        self.assertEqual(bare.css, [])
+        self.assertIn("confidential-banner", bare.markdown)
+
+        chosen = quire.plan_job(
+            str(path),
+            profile=None,
+            confidential=True,
+            output=Path("chosen/result.pdf"),
+            cwd=self.root,
+        )
+        self.assertEqual(chosen.output, self.root / "chosen" / "result.pdf")
 
     def test_custom_css_replaces_selected_stylesheets(self) -> None:
         css = self.root / "custom.css"

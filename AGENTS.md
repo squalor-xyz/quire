@@ -9,6 +9,8 @@ do not inspect a parent checkout or depend on its layout.
   planning, and rendering through Pandoc and WeasyPrint.
 - `install.py`: local runtime setup, shell launchers, and profile registration.
 - `plain.css`: unbranded default stylesheet.
+- `plain-confidential.css`: the same treatment plus a running Confidential
+  mark, used when `--confidential` is set and no profile is selected.
 - `test_quire.py`: stdlib unittest suite with temporary, generic profiles.
 - `requirements.txt`: WeasyPrint, the only direct pip dependency.
 

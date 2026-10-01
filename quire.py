@@ -3,11 +3,14 @@
 Quire: build a PDF from Markdown via pandoc + WeasyPrint.
 
 With no config, the document uses plain.css only (page size, type, page number).
-A named config points at a profile directory (profile.toml, CSS, HTML fragments).
+`--confidential` without a profile uses plain-confidential.css and a running
+Confidential mark. A named config points at a profile directory
+(profile.toml, CSS, HTML fragments).
 
 Examples:
   quire notes/foo.md
   quire notes/foo.md --css extra.css -o out/foo.pdf
+  quire --no-config notes/foo.md --confidential
   quire --config squalor notes/foo.md --letterhead
 """
 
@@ -25,6 +28,8 @@ from pathlib import Path
 
 ENGINE_DIR = Path(__file__).resolve().parent
 PLAIN_CSS = ENGINE_DIR / "plain.css"
+PLAIN_CONFIDENTIAL_CSS = ENGINE_DIR / "plain-confidential.css"
+PLAIN_CONFIDENTIAL_BANNER = '<div class="confidential-banner">Confidential</div>'
 
 INSTALL_HELP = """
 Missing tools for PDF build.
@@ -250,6 +255,23 @@ def variant_name(letterhead: bool, confidential: bool) -> str:
     return VARIANT_NAMES[(letterhead, confidential)]
 
 
+def plain_confidential_variant() -> Variant:
+    """Unbranded confidential treatment used when no profile is selected."""
+    return Variant(
+        name="confidential",
+        css=[PLAIN_CONFIDENTIAL_CSS],
+        includes=[
+            Include(
+                text=PLAIN_CONFIDENTIAL_BANNER,
+                skip_if_body_contains=["confidential-banner"],
+            )
+        ],
+        metadata={"confidential": "true"},
+        output_suffix="-confidential",
+        ensure_in_front_matter=["confidential"],
+    )
+
+
 def flags_for_builtin(variant: str) -> tuple[bool, bool]:
     """Built-in variant forces letterhead and/or confidential. CLI flags can add either."""
     if variant == "default":
@@ -450,8 +472,12 @@ def plan_job(
         if name not in profile.variants:
             raise SystemExit(f"error: profile has no {name!r} variant")
         variant = profile.variants[name]
-    elif letterhead or confidential:
-        raise SystemExit("error: --letterhead and --confidential require --profile")
+    elif letterhead:
+        raise SystemExit("error: --letterhead requires a profile")
+    elif confidential:
+        if not PLAIN_CONFIDENTIAL_CSS.is_file():
+            raise SystemExit(f"error: CSS missing: {PLAIN_CONFIDENTIAL_CSS}")
+        variant = plain_confidential_variant()
 
     extra: list[str] = []
     for raw in include_before or []:
@@ -659,12 +685,15 @@ def _parser(
     parser.add_argument(
         "--no-config",
         action="store_true",
-        help="Ignore the default config and build a plain PDF",
+        help="Ignore the default profile and use the plain style",
     )
     parser.add_argument(
         "--confidential",
         action="store_true",
-        help="Select the profile's confidential variant",
+        help=(
+            "Mark the document confidential. With a profile, select its "
+            "confidential variant; otherwise use the plain confidential style"
+        ),
     )
     parser.add_argument(
         "--letterhead",

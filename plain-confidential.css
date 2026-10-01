@@ -1,0 +1,44 @@
+/* Unbranded confidential document CSS for quire (pandoc + WeasyPrint).
+   Complete stylesheet: same page setup as plain.css, plus a running
+   Confidential mark. No company marks, colors, or footer strings.
+*/
+
+@page {
+  size: letter;
+  margin: 0.75in;
+
+  @top-center {
+    content: element(confidential);
+  }
+
+  @bottom-right {
+    content: counter(page);
+    font-family: Helvetica, Arial, sans-serif;
+    font-size: 9pt;
+    color: #444;
+  }
+}
+
+.confidential-banner {
+  position: running(confidential);
+  font-family: Helvetica, Arial, sans-serif;
+  font-size: 9pt;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #444;
+}
+
+body {
+  font-family: Helvetica, Arial, sans-serif;
+  font-size: 11pt;
+  line-height: 1.45;
+  color: #222;
+}
+
+h1, h2, h3 {
+  page-break-after: avoid;
+}
+
+img {
+  max-width: 100%;
+}

@@ -40,11 +40,19 @@ provides US letter pages, sans-serif text, and page numbers.
 ```sh
 quire notes.md -o output/notes.pdf       # Choose an output path
 quire notes.md --no-config              # Use the plain style
+quire notes.md --no-config --confidential
 quire notes.md --css custom.css         # Replace the selected stylesheet
 quire notes.md --no-css                 # Pass no stylesheet to Pandoc
 quire notes.md --include-before intro.html
 quire notes.md --resource-path assets   # Set the resource root
 ```
+
+`--confidential` with no profile uses `plain-confidential.css`, prepends a
+Confidential banner, and writes `notes-confidential.pdf`. The banner repeats
+in the top margin on every page. `--css` replaces that stylesheet and
+`--no-css` passes none; the banner text stays in the document either way.
+Pass `--no-config` when a profile is your default and the document should
+stay unbranded. `--letterhead` still requires a profile.
 
 Input files must end in `.md` or `.markdown`. Output directories are created
 automatically; an existing output PDF is overwritten. `--css` and
@@ -66,7 +74,8 @@ quire configs
 
 Registration stores the profile's path and creates an `acme-pdf` shortcut;
 it does not copy assets or select a default. `--no-command` skips the shortcut.
-Letterhead and confidential flags require a profile with the matching variant.
+With a profile, `--letterhead` and `--confidential` select that profile's
+matching variant.
 
 See [Profiles](docs/profiles.md) for defaults, selection order, and authoring.
 

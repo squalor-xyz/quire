@@ -74,7 +74,7 @@ paths and `~` paths are also supported.
 
 ## Variants and reusable documents
 
-Flags select these variant names:
+With a profile, flags select these variant names:
 
 | Flags | Variant |
 | --- | --- |
@@ -82,6 +82,12 @@ Flags select these variant names:
 | `--letterhead` | `letterhead` |
 | `--confidential` | `confidential` |
 | Both | `letterhead-confidential` |
+
+`--confidential` with no profile, including after `--no-config`, does not use
+this table. It uses the built-in plain confidential stylesheet, prepends a
+Confidential banner, marks every page with that banner, and adds
+`-confidential` to the output name. `--letterhead` with no profile is an
+error, whether or not `--confidential` is also set.
 
 Define the variants you need; selecting an absent variant is an error. Use a
 complete stylesheet for each combination. This complete example adds variants
