@@ -1,0 +1,3 @@
+# PDF engine for: pandoc --pdf-engine=weasyprint
+# Pandoc itself is a system install (brew install pandoc).
+weasyprint>=62.0
