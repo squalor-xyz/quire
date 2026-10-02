@@ -610,5 +610,15 @@ class NamedConfigTests(unittest.TestCase):
             self.assertTrue((config_dir / "config.toml").is_file())
 
 
+class VersionTests(unittest.TestCase):
+    def test_version_prints_without_reading_config(self) -> None:
+        buf = io.StringIO()
+        with patch.dict("os.environ", {"QUIRE_PROG": "", "QUIRE_CONFIG": "", "QUIRE_PROFILE": ""}), \
+                patch.object(quire, "load_user_config", side_effect=AssertionError("config")), \
+                redirect_stdout(buf):
+            quire.main(["--version"])
+        self.assertEqual(buf.getvalue(), "quire 1.0.0\n")
+
+
 if __name__ == "__main__":
     unittest.main()

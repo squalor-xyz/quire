@@ -132,6 +132,7 @@ See [Profiles](docs/profiles.md) for defaults, selection order, and authoring.
 ## Help and development
 
 ```sh
+quire --version
 quire --help
 quire install --help
 python3 install.py --help

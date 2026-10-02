@@ -1,0 +1,52 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*.*.*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Publish GitHub release
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require("fs");
+            const tag = context.ref.replace("refs/tags/", "");
+            const version = tag.replace(/^v/, "");
+            const escaped = version.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+            const changelog = fs.readFileSync("CHANGELOG.md", "utf8");
+            const heading = new RegExp(`^## ${escaped}\\s*$`, "m");
+            const match = heading.exec(changelog);
+            if (!match) {
+              core.setFailed(`CHANGELOG.md has no section for ${version}`);
+              return;
+            }
+            const rest = changelog.slice(match.index + match[0].length);
+            const next = rest.search(/^## /m);
+            const body = (next === -1 ? rest : rest.slice(0, next)).trim();
+            try {
+              await github.rest.repos.getReleaseByTag({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                tag,
+              });
+              core.info(`Release ${tag} already exists`);
+              return;
+            } catch (error) {
+              if (error.status !== 404) {
+                throw error;
+              }
+            }
+            await github.rest.repos.createRelease({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              tag_name: tag,
+              name: tag,
+              body,
+            });

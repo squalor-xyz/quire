@@ -28,6 +28,8 @@ import tomllib
 from dataclasses import dataclass, field
 from pathlib import Path
 
+__version__ = "1.0.0"
+
 ENGINE_DIR = Path(__file__).resolve().parent
 PLAIN_CSS = ENGINE_DIR / "plain.css"
 PLAIN_CONFIDENTIAL_CSS = ENGINE_DIR / "plain-confidential.css"
@@ -888,6 +890,9 @@ def main(
     if prog is None:
         prog = os.environ.get("QUIRE_PROG") or "quire"
     args_in = list(sys.argv[1:] if argv is None else argv)
+    if "--version" in args_in:
+        print(f"{prog} {__version__}")
+        return
     # build.py pins a profile and does not grow these subcommands.
     if default_profile is None and args_in[:1] in (["install"], ["configs"]):
         import install as quire_install
