@@ -6,6 +6,7 @@ from __future__ import annotations
 import io
 import stat
 import tempfile
+import tomllib
 import unittest
 from contextlib import redirect_stdout
 from pathlib import Path
@@ -410,6 +411,70 @@ class ConfigFileTests(unittest.TestCase):
         self.assertIn('acme = "/new/path"', updated)
         self.assertNotIn("/old/path", updated)
         self.assertIn("# keep", updated)
+
+    def test_upsert_accepts_toml_spacing_quotes_and_comments(self) -> None:
+        for header in ("[profiles]", "[profiles] # registered profiles"):
+            for assignment in (
+                'acme="/old"',
+                '  acme\t= "/old" # old path',
+                '"acme" = "/old"',
+                "'acme' = '/old'",
+            ):
+                for newline in ("", "\n"):
+                    with self.subTest(header=header, assignment=assignment, newline=newline):
+                        original = (
+                            '# keep this comment\ndefault = "other"\n'
+                            f'{header}\nother = "/other"\n{assignment}\n'
+                            '[extra] # unrelated table\nsetting = "keep"' + newline
+                        )
+                        updated = install.upsert_profile(original, "acme", Path("/new"))
+                        expected = tomllib.loads(original)
+                        expected["profiles"]["acme"] = "/new"
+                        self.assertEqual(tomllib.loads(updated), expected)
+                        self.assertIn(header, updated)
+                        self.assertIn('# keep this comment', updated)
+                        self.assertIn('[extra] # unrelated table', updated)
+                        self.assertEqual(updated.endswith("\n"), bool(newline))
+
+    def test_upsert_adds_profile_before_commented_next_table(self) -> None:
+        for original in (
+            '# keep\ndefault = "other"\n[profiles] # paths\nother = "/other"\n'
+            '[extra] # settings\nsetting = "keep"\n',
+            '# keep\ndefault = ""\n[extra]\nsetting = "keep"\n',
+        ):
+            with self.subTest(original=original):
+                updated = install.upsert_profile(original, "acme", Path("/new"))
+                expected = tomllib.loads(original)
+                expected.setdefault("profiles", {})["acme"] = "/new"
+                self.assertEqual(tomllib.loads(updated), expected)
+                self.assertIn('# keep', updated)
+
+    def test_registration_rejects_invalid_or_unsafe_updates_without_writing(self) -> None:
+        for original in (
+            '[profiles]\nacme = "unterminated',
+            'profiles = "not a table"\n',
+            'profiles.acme = "/old"\n',
+            '[profiles]\nacme = """\n/old\n"""\n',
+            '[extra]\nvalue = """\n[profiles]\n'
+            'acme = "/inside-string"\n"""\n[profiles]\nacme = "/old"\n',
+        ):
+            with self.subTest(original=original), temporary_directory() as tmp:
+                root = Path(tmp)
+                profile = root / "profile"
+                profile.mkdir()
+                (profile / "profile.toml").write_text("# test\n", encoding="utf-8")
+                config_dir = root / "config"
+                config_dir.mkdir()
+                config_path = config_dir / "config.toml"
+                config_path.write_text(original, encoding="utf-8")
+                with self.assertRaisesRegex(SystemExit, "file left unchanged"):
+                    install.register_config(
+                        name="acme", profile=profile, bin_dir=root / "bin",
+                        config_dir=config_dir, python=root / "python",
+                        script=APP_DIR / "quire.py",
+                    )
+                self.assertEqual(config_path.read_text(encoding="utf-8"), original)
+                self.assertFalse((root / "bin").exists())
 
     def test_install_writes_launchers_without_touching_default(self) -> None:
         with temporary_directory() as tmp:

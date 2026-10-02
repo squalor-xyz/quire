@@ -11,7 +11,7 @@ Examples:
   quire notes/foo.md
   quire notes/foo.md --css extra.css -o out/foo.pdf
   quire --no-config notes/foo.md --confidential
-  quire --config squalor notes/foo.md --letterhead
+  quire --config acme notes/foo.md --letterhead
 """
 
 from __future__ import annotations

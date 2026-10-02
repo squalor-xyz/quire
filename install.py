@@ -18,6 +18,7 @@ import shutil
 import stat
 import subprocess
 import sys
+import tomllib
 from pathlib import Path
 
 APP_DIR = Path(__file__).resolve().parent
@@ -59,37 +60,54 @@ def config_template(name: str, profile: Path) -> str:
 
 def upsert_profile(text: str, name: str, profile: Path) -> str:
     """Set profiles.<name> and leave every other line alone."""
+    try:
+        original = tomllib.loads(text)
+    except tomllib.TOMLDecodeError as exc:
+        raise SystemExit(f"error: invalid config; file left unchanged: {exc}") from exc
+    profiles = original.get("profiles", {})
+    if not isinstance(profiles, dict):
+        raise SystemExit("error: config [profiles] must be a table; file left unchanged")
+    expected = dict(original)
+    expected["profiles"] = {**profiles, name: str(profile)}
     if not text.strip():
         return config_template(name, profile)
     assignment = f'{name} = "{toml_escape(str(profile))}"'
     lines = text.splitlines()
     start = None
     for index, line in enumerate(lines):
-        if line.strip() == "[profiles]":
+        if re.fullmatch(r"\s*\[\s*(?:profiles|\"profiles\"|'profiles')\s*\]\s*(?:#.*)?", line):
             start = index
             break
     if start is None:
         suffix = text
         if suffix and not suffix.endswith("\n"):
             suffix += "\n"
-        return suffix + "\n[profiles]\n" + assignment + "\n"
-
-    end = len(lines)
-    for index in range(start + 1, len(lines)):
-        stripped = lines[index].strip()
-        if stripped.startswith("[") and stripped.endswith("]"):
-            end = index
-            break
-    prefix = f"{name} ="
-    for index in range(start + 1, end):
-        if lines[index].startswith(prefix) or lines[index].lstrip().startswith(prefix):
-            lines[index] = assignment
-            break
+        rendered = suffix + "\n[profiles]\n" + assignment + "\n"
     else:
-        lines.insert(end, assignment)
-    rendered = "\n".join(lines)
-    if text.endswith("\n"):
-        rendered += "\n"
+        end = len(lines)
+        for index in range(start + 1, len(lines)):
+            if lines[index].lstrip().startswith("["):
+                end = index
+                break
+        key = re.escape(name)
+        assignment_re = re.compile(rf"\s*(?:{key}|\"{key}\"|'{key}')\s*=")
+        for index in range(start + 1, end):
+            if assignment_re.match(lines[index]):
+                lines[index] = assignment
+                break
+        else:
+            lines.insert(end, assignment)
+        rendered = "\n".join(lines)
+        if text.endswith("\n"):
+            rendered += "\n"
+    try:
+        updated = tomllib.loads(rendered)
+    except tomllib.TOMLDecodeError as exc:
+        raise SystemExit(
+            "error: unsupported config formatting; file left unchanged"
+        ) from exc
+    if updated != expected:
+        raise SystemExit("error: unsafe config update; file left unchanged")
     return rendered
 
 

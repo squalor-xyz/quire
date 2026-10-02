@@ -31,6 +31,8 @@ acme = "/absolute/path/to/acme"
 ```
 
 Registration and re-registration preserve `default` and other profiles.
+Invalid configuration or formatting that cannot be updated safely produces an
+error and leaves the configuration file unchanged.
 `quire install` and `quire configs` accept `--config-dir`; PDF builds use the
 standard location above. Use `XDG_CONFIG_HOME` to relocate it for all commands.
 

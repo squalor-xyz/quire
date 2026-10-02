@@ -92,3 +92,7 @@ See [Contributing](CONTRIBUTING.md) for local checks and the code layout.
 If a build reports missing tools, check that Pandoc is on PATH and WeasyPrint
 is available in `.venv/bin` or on PATH. Rerunning the installer restores a
 missing local Python runtime.
+
+## License
+
+Quire is licensed under the [MIT License](LICENSE).
