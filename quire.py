@@ -28,7 +28,7 @@ import tomllib
 from dataclasses import dataclass, field
 from pathlib import Path
 
-__version__ = "1.0.1"
+__version__ = "1.0.2"
 
 ENGINE_DIR = Path(__file__).resolve().parent
 PLAIN_CSS = ENGINE_DIR / "plain.css"

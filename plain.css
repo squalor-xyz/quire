@@ -26,6 +26,9 @@ h1, h2, h3, h4 {
   page-break-after: avoid;
 }
 
+thead { break-after: avoid; page-break-after: avoid; }
+tr { break-inside: avoid; page-break-inside: avoid; }
+
 .quire-diagram > svg {
   max-width: 100%;
   max-height: 65%;

@@ -36,37 +36,45 @@ async function normalizeLabels(page) {
         if (value && property.startsWith('stop-')) element.setAttribute(property, value);
       }
     }
-    // htmlLabels is off, so <small> survives as literal text. Drop the tags after
-    // computed font sizes are copied, and keep that text smaller.
-    for (const text of svg.querySelectorAll('text')) {
-      let small = false;
-      for (const span of [...text.querySelectorAll('tspan')]) {
-        const parts = span.textContent.split(/(<\/?small>|<br\s*\/?>)/i);
-        let value = '';
-        let marked = false;
-        for (const part of parts) {
-          if (/^<small>$/i.test(part)) {
-            small = true;
-            marked = true;
-            continue;
-          }
-          if (/^<\/small>$/i.test(part)) {
-            small = false;
-            continue;
-          }
-          if (!part || /^<br/i.test(part)) continue;
-          if (small) marked = true;
-          value += part;
-        }
-        if (!value.trim()) {
-          span.remove();
-          continue;
-        }
-        span.textContent = value;
-        if (!marked) continue;
-        const size = parseFloat(span.style.fontSize);
-        if (size) span.style.fontSize = `${size * 0.8}px`;
+    // <small> lines were marked before Mermaid measured them, at the normal font
+    // size. Freeze each line's baseline in pixels, then shrink the marked lines.
+    // Leaving dy in em would resolve it against the smaller font and pull that
+    // line onto the one above it. Nested word tspans stay unpositioned so they
+    // inherit the line.
+    const em = (value) => {
+      const number = parseFloat(value);
+      return Number.isFinite(number) ? number : 0;
+    };
+    const stripMarker = (element) => {
+      let marked = false;
+      const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
+      const nodes = [];
+      while (walker.nextNode()) nodes.push(walker.currentNode);
+      for (const node of nodes) {
+        if (!node.textContent.includes('\u200B')) continue;
+        marked = true;
+        node.textContent = node.textContent.replaceAll('\u200B', '');
       }
+      return marked;
+    };
+    for (const text of svg.querySelectorAll('text')) {
+      for (const row of [...text.children].filter(element =>
+        element.localName === 'tspan' && element.classList.contains('text-outer-tspan'))) {
+        const measured = parseFloat(row.style.fontSize) || 16;
+        const baseline = (em(row.getAttribute('y')) + em(row.getAttribute('dy'))) * measured;
+        const marked = stripMarker(row);
+        if (marked) {
+          const size = measured * 0.8;
+          row.style.fontSize = `${size}px`;
+          for (const inner of row.querySelectorAll('tspan')) inner.style.fontSize = `${size}px`;
+        }
+        row.setAttribute('y', String(baseline));
+        row.setAttribute('dy', '0');
+      }
+    }
+    for (const rect of svg.querySelectorAll('.edgeLabel rect.background')) {
+      rect.style.opacity = '1';
+      rect.setAttribute('opacity', '1');
     }
     const canvas = document.createElement('canvas');
     const context = canvas.getContext('2d');
@@ -228,17 +236,26 @@ async function main() {
     if (input.fontCSS.trim()) await page.addStyleTag({ content: input.fontCSS });
     await page.evaluate(async ({ source, config, seed }) => {
       const mermaid = window.quireMermaid;
+      const prepared = source.replace(/<small>([\s\S]*?)<\/small>/gi, (_, inner) => inner
+        .split(/<br\s*\/?>/i)
+        .map(line => `\u200B${line}`)
+        .join('<br/>'));
       mermaid.initialize({
-        ...config, htmlLabels: false, securityLevel: 'strict',
-        deterministicIds: true, deterministicIDSeed: seed,
+        ...config,
+        htmlLabels: false,
+        flowchart: { ...(config.flowchart || {}), wrappingWidth: 100000 },
+        securityLevel: 'strict',
+        deterministicIds: true,
+        deterministicIDSeed: seed,
         secure: ['secure', 'securityLevel', 'startOnLoad', 'maxTextSize', 'maxEdges',
-          'deterministicIds', 'deterministicIDSeed', 'theme', 'fontFamily', 'themeVariables', 'htmlLabels'],
+          'deterministicIds', 'deterministicIDSeed', 'theme', 'fontFamily', 'themeVariables',
+          'htmlLabels', 'flowchart'],
         startOnLoad: false,
       });
       const family = config.themeVariables?.fontFamily || config.fontFamily || 'sans-serif';
-      await document.fonts.load(`16px ${family}`, source);
+      await document.fonts.load(`16px ${family}`, prepared);
       await document.fonts.ready;
-      const { svg } = await mermaid.render(`diagram-${seed.slice(0, 16)}`, source);
+      const { svg } = await mermaid.render(`diagram-${seed.slice(0, 16)}`, prepared);
       document.querySelector('#diagram').innerHTML = svg;
       await document.fonts.ready;
     }, input);

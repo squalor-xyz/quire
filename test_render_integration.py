@@ -10,6 +10,7 @@ import shutil
 import subprocess
 import tempfile
 import unittest
+import xml.etree.ElementTree as ET
 from contextlib import redirect_stdout, redirect_stderr
 from pathlib import Path
 from unittest.mock import patch
@@ -57,28 +58,34 @@ class IntegrationTests(unittest.TestCase):
 
     def test_fixture_html_pdf_cache_and_labels(self):
         calls = []
+        svgs = []
         original = MermaidRenderer._call
         def recorded(renderer, args, payload):
+            result = original(renderer, args, payload)
             if payload is not None:
                 calls.append(payload)
-            return original(renderer, args, payload)
+                svgs.append(result)
+            return result
         with patch.object(MermaidRenderer, "_call", recorded):
             html, _ = self.build(format="html")
-            self.assertEqual(len(calls), 12)
+            self.assertEqual(len(calls), 13)
+            self.assert_label_geometry(svgs)
             calls.clear()
             pdf, verbose = self.build(format="pdf", verbose=True)
             self.assertEqual(calls, [])
-            self.assertEqual(verbose.count('cache hit'), 12)
+            self.assertEqual(verbose.count('cache hit'), 13)
         content = html.output.read_text()
-        self.assertEqual(content.count('data-quire-diagram="'), 12)
+        self.assertEqual(content.count('data-quire-diagram="'), 13)
         self.assertNotIn('class="mermaid"', content)
         self.assertNotIn('foreignObject', content)
         self.assertNotIn('textLength', content)
         self.assertNotIn('&lt;small&gt;', content)
         self.assertIn('text-anchor: middle', content)
         self.assertIn('font-size: 12.8px', content)
+        self.assertNotIn('\u200b', content)
         text = self.pdf_text(pdf.output)
-        for label in ("First line", "Second line", "Cylinder", "PERSON", "DOCUMENT", "Reply"):
+        for label in ("First line", "Second line", "Cylinder", "PERSON", "DOCUMENT", "Reply",
+                      "SchemaResolver", "ImportAsync(path)", "measurements"):
             self.assertIn(label, text)
         self.assertIn("Small detail", re.sub(r"\s+", " ", text))
         pages = text.split('\f')
@@ -97,6 +104,72 @@ class IntegrationTests(unittest.TestCase):
             destination.mkdir(parents=True, exist_ok=True)
             for artifact in (html.output, pdf.output, *self.root.glob('page-*.png')):
                 shutil.copyfile(artifact, destination / artifact.name)
+
+    def font_size(self, element):
+        match = re.search(r"font-size:\s*([0-9.]+)px", element.get("style") or "")
+        return float(match.group(1)) if match else None
+
+    def assert_label_geometry(self, diagrams):
+        svg_ns = "{http://www.w3.org/2000/svg}"
+        joined = "\n".join(diagrams)
+        self.assertIn(">SchemaResolver<", joined)
+        self.assertIn(">ImportAsync(path)<", joined)
+        self.assertNotIn("\u200b", joined)
+        self.assertEqual(len(diagrams), 13)
+        saw_small_gap = False
+        saw_edge = False
+        for diagram in diagrams:
+            root = ET.fromstring(diagram)
+            for text in root.iter(svg_ns + "text"):
+                rows = [child for child in list(text)
+                        if child.tag == svg_ns + "tspan"
+                        and "text-outer-tspan" in (child.get("class") or "")]
+                for previous, row in zip(rows, rows[1:]):
+                    previous_y = float(previous.get("y"))
+                    y = float(row.get("y"))
+                    size = self.font_size(row)
+                    previous_size = self.font_size(previous)
+                    self.assertIsNotNone(size)
+                    self.assertIsNotNone(previous_size)
+                    # The next em-box starts at or below the previous baseline.
+                    self.assertGreaterEqual(y - size, previous_y - 0.05)
+                    self.assertGreaterEqual(
+                        y - previous_y + 0.05, max(previous_size, size) * 1.1)
+                    if abs(size - 12.8) < 0.01 or abs(previous_size - 12.8) < 0.01:
+                        saw_small_gap = True
+            for group in root.iter(svg_ns + "g"):
+                if "edgeLabel" not in (group.get("class") or "").split():
+                    continue
+                saw_edge = True
+                seen_text = False
+                for element in group.iter():
+                    if element.tag == svg_ns + "text":
+                        seen_text = True
+                    if (element.tag == svg_ns + "rect"
+                            and "background" in (element.get("class") or "").split()):
+                        self.assertFalse(seen_text)
+                        self.assertRegex(element.get("style") or "", r"(?:^|;)\s*opacity:\s*1(?:\s|;|$)")
+                        self.assertEqual(element.get("opacity"), "1")
+        self.assertTrue(saw_small_gap)
+        self.assertTrue(saw_edge)
+
+    def test_table_row_stays_on_one_page(self):
+        # Enough paragraphs that the tall row starts near the bottom of a page.
+        # Without the row rule, ROWSTART and ROWEND land on different pages.
+        filler = "\n\n".join(f"Filler paragraph {index} sits above the table." for index in range(1, 22))
+        detail = "<br>".join(
+            ["ROWSTART", *(f"middle line {index} of the measurements cell" for index in range(1, 12)), "ROWEND"])
+        self.source.write_text(
+            filler + "\n\n| Name | Detail |\n| --- | --- |\n"
+            f"| measurements | {detail} |\n| after | trailer |\n",
+            encoding="utf-8")
+        pdf, _ = self.build(format="pdf")
+        pages = self.pdf_text(pdf.output).split("\f")
+        start = [index for index, page in enumerate(pages) if "ROWSTART" in page]
+        end = [index for index, page in enumerate(pages) if "ROWEND" in page]
+        header = [index for index, page in enumerate(pages) if "Name" in page and "Detail" in page]
+        self.assertEqual(start, end)
+        self.assertEqual(header, start)
 
     def test_tall_diagram_stays_with_its_heading(self):
         nodes = '\n'.join(f'  N{i} --> N{i + 1}' for i in range(1, 18))

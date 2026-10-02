@@ -206,6 +206,10 @@ content height and the full content width. The PDF fitter applies the
 larger than its intrinsic size. Set that percentage in a profile stylesheet to
 override it. When the stylesheet does not declare one, the cap stays 65%.
 
+Those stylesheets also keep a table row on one page, and keep the header with
+the first row (`tr { break-inside: avoid; }` and `thead { break-after: avoid; }`).
+A profile stylesheet can replace either rule.
+
 PDF and HTML share profile selection, variants, includes, and CSS. Use
 `--format html` or `-o document.html` for a standalone HTML document. `--no-css`
 still disables document styles; diagram containment rules remain active for

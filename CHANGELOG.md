@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.0.2
+
+- Keep `<small>` sub-labels below the line above them. Each line advances by the height of the larger line.
+- Break flowchart labels only at spaces and `<br/>`. A long word widens its node.
+- Size node boxes from the lines that are drawn.
+- Draw an opaque background behind edge labels so the connector does not show through the text.
+- Keep each table row on one page, and keep the header with the first row. A profile stylesheet can replace either rule.
+
 ## 1.0.1
 
 - Cap each PDF diagram at 65% of the page content height, or at the `max-height` percentage on `.quire-diagram > svg`. Diagrams are never enlarged past their intrinsic size.

@@ -119,3 +119,17 @@ flowchart TD
   F --> G[Seven]
   G --> H[Eight]
 ```
+
+## Example 13
+
+```mermaid
+flowchart LR
+  A[SchemaResolver] --> B["ImportAsync(path)"]
+  A -->|"Open / ImportAsync"| C["Main label<br/><small>one two<br/>three four</small>"]
+```
+
+## Records
+
+| Name | Detail | Notes |
+| --- | --- | --- |
+| measurements | a column group. Rows where the whole group is NULL are skipped | kept |
