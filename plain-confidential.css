@@ -28,6 +28,14 @@
   color: #444;
 }
 
+@media screen {
+  .confidential-banner {
+    position: static;
+    text-align: center;
+    margin-bottom: 1em;
+  }
+}
+
 body {
   font-family: Helvetica, Arial, sans-serif;
   font-size: 11pt;

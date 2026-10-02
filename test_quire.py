@@ -14,6 +14,7 @@ from unittest.mock import patch
 
 import install
 import quire
+from test_render import RenderTests, HTMLResourceTests, MermaidTests
 
 APP_DIR = Path(__file__).resolve().parent
 

@@ -170,3 +170,40 @@ removed. Pandoc runs with the first root as its working directory.
 
 `resource_root` must exist and is relative to the profile directory. It also
 provides a fallback location for input paths not found in the working directory.
+
+## Mermaid styling and HTML
+
+Profiles can set Mermaid styling explicitly; document CSS is not used to infer
+diagram colors or the selected font:
+
+```toml
+[mermaid]
+theme = "base"
+font_family = "sans-serif"
+theme_variables = { primaryColor = "#eeeeee", lineColor = "#333333" }
+
+[variants.confidential.mermaid]
+theme_variables = { primaryColor = "#dddddd" }
+```
+
+The selected variant overrides the profile's settings. Individual
+`theme_variables` merge, so the example preserves `lineColor`. Values must be
+strings, numbers, or booleans. Supported themes are `default`, `neutral`, `dark`,
+`forest`, and `base`; Mermaid's theme variables are intended for the `base`
+theme. Unknown settings and invalid values are errors. Existing profiles default
+to the `neutral` theme and `Helvetica, Arial, sans-serif`.
+
+Use fonts available to both Chromium and WeasyPrint, or declare local font files
+with `@font-face` in the selected CSS. Keep font declarations outside print-only
+media queries so the diagram renderer can load them. Remote fonts and resources
+are rejected. Changing the selected stylesheet invalidates diagram cache entries.
+
+PDF and HTML share profile selection, variants, includes, and CSS. Use
+`--format html` or `-o document.html` for a standalone HTML document. `--no-css`
+still disables document styles; diagram containment rules remain active for
+rendered diagrams. `--no-mermaid` preserves source blocks in either format.
+
+Use `@media screen` in profile CSS for browser presentation. Running elements
+and page-margin content are print features; provide screen rules when letterhead
+or notices must appear in the browser body. The built-in plain confidential
+stylesheet supplies its own screen rule. HTML does not simulate PDF pages.

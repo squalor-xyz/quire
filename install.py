@@ -161,6 +161,28 @@ def ensure_venv(python: Path | None) -> Path:
     return venv_python
 
 
+def ensure_mermaid() -> None:
+    """Install the optional locked Node runtime dependencies inside the checkout."""
+    node = shutil.which("node")
+    npm = shutil.which("npm")
+    if not node or not npm:
+        raise SystemExit("error: --with-mermaid requires Node >=22.13 and npm on PATH")
+    version = subprocess.run([node, "--version"], capture_output=True, text=True, check=True)
+    match = re.fullmatch(r"v(\d+)\.(\d+)\.(\d+)\s*", version.stdout)
+    if not match or tuple(map(int, match.groups())) < (22, 13, 0):
+        raise SystemExit("error: --with-mermaid requires Node >=22.13")
+    env = os.environ.copy()
+    env["PUPPETEER_CACHE_DIR"] = str(APP_DIR / ".cache" / "puppeteer")
+    env["PUPPETEER_SKIP_CHROME_HEADLESS_SHELL_DOWNLOAD"] = "true"
+    env["npm_config_cache"] = str(APP_DIR / ".cache" / "npm")
+    subprocess.run([npm, "ci", "--prefix", str(APP_DIR), "--no-audit", "--no-fund"],
+                   check=True, cwd=APP_DIR, env=env)
+    # Recent npm versions gate dependency scripts. Run this reviewed installer
+    # explicitly; older npm versions simply reuse the browser already downloaded.
+    subprocess.run([node, str(APP_DIR / "node_modules/puppeteer/install.mjs")],
+                   check=True, cwd=APP_DIR, env=env)
+
+
 def write_text(path: Path, text: str, executable: bool) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(text, encoding="utf-8")
@@ -214,7 +236,10 @@ def install(
     python: Path | None = None,
     script: Path | None = None,
     ensure_runtime: bool = True,
+    with_mermaid: bool = False,
 ) -> None:
+    if with_mermaid:
+        ensure_mermaid()
     if ensure_runtime:
         interpreter = ensure_venv(None)
     else:
@@ -313,6 +338,8 @@ def main(argv: list[str] | None = None) -> None:
         help="Do not create the venv. Requires --python.",
     )
     parser.add_argument("--python", type=Path, default=None)
+    parser.add_argument("--with-mermaid", action="store_true",
+                        help="Install local Mermaid tooling and Chromium; requires Node >=22.13 and npm")
     args = parser.parse_args(argv)
     if args.name and args.profile is None:
         raise SystemExit("error: --name requires --profile")
@@ -323,6 +350,7 @@ def main(argv: list[str] | None = None) -> None:
         profile=args.profile,
         python=args.python,
         ensure_runtime=not args.skip_venv,
+        with_mermaid=args.with_mermaid,
     )
 
 

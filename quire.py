@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Quire: build a PDF from Markdown via pandoc + WeasyPrint.
+Quire: build PDF or standalone HTML from Markdown via Pandoc.
 
 With no config, the document uses plain.css only (page size, type, page number).
 `--confidential` without a profile uses plain-confidential.css and a running
@@ -17,7 +17,9 @@ Examples:
 from __future__ import annotations
 
 import argparse
+import json
 import os
+import shlex
 import shutil
 import subprocess
 import sys
@@ -65,6 +67,7 @@ class Include:
     after_anchor: str | None = None
     close_tag: str = "</div>"
     close_count: int = 1
+    source: Path | None = None
 
 
 @dataclass
@@ -75,6 +78,7 @@ class Variant:
     metadata: dict[str, str]
     output_suffix: str
     ensure_in_front_matter: list[str]
+    mermaid: dict = field(default_factory=dict)
 
 
 @dataclass
@@ -91,6 +95,7 @@ class Profile:
     resource_root: Path | None
     variants: dict[str, Variant]
     builtins: dict[str, Builtin]
+    mermaid: dict = field(default_factory=dict)
 
 
 @dataclass
@@ -102,6 +107,12 @@ class Job:
     metadata: dict[str, str]
     resource_path: str
     cwd: Path
+    format: str = "pdf"
+    no_mermaid: bool = False
+    verbose: bool = False
+    mermaid: dict = field(default_factory=dict)
+    original_markdown: str = ""
+    include_sources: list[tuple[Path, str]] = field(default_factory=list)
 
 
 def which_pandoc() -> str | None:
@@ -151,6 +162,7 @@ def _load_include(root: Path, raw: object) -> Include:
         raise SystemExit("error: close_tag must be a string")
     return Include(
         text=path.read_text(encoding="utf-8"),
+        source=path,
         skip_if_body_contains=_str_list(raw, "skip_if_body_contains"),
         only_if_body_contains=_str_list(raw, "only_if_body_contains"),
         after_marker=after_marker,
@@ -158,6 +170,30 @@ def _load_include(root: Path, raw: object) -> Include:
         close_tag=close_tag,
         close_count=close_count,
     )
+
+
+def _load_mermaid(raw: object) -> dict:
+    if not isinstance(raw, dict):
+        raise SystemExit("error: mermaid must be a table")
+    unknown = set(raw) - {"theme", "font_family", "theme_variables"}
+    if unknown:
+        raise SystemExit(f"error: unknown mermaid settings: {', '.join(sorted(unknown))}")
+    result = {}
+    for key, target in (("theme", "theme"), ("font_family", "fontFamily")):
+        if key in raw:
+            if not isinstance(raw[key], str) or not raw[key].strip():
+                raise SystemExit(f"error: mermaid {key} must be a nonempty string")
+            result[target] = raw[key]
+    if "theme" in result and result["theme"] not in {"default", "neutral", "dark", "forest", "base"}:
+        raise SystemExit("error: unsupported Mermaid theme")
+    variables = raw.get("theme_variables", {})
+    if not isinstance(variables, dict) or not all(
+        isinstance(v, (str, int, float, bool)) for v in variables.values()
+    ):
+        raise SystemExit("error: mermaid theme_variables must contain scalar values")
+    if variables:
+        result["themeVariables"] = dict(variables)
+    return result
 
 
 def _load_variant(root: Path, name: str, raw: object) -> Variant:
@@ -185,6 +221,7 @@ def _load_variant(root: Path, name: str, raw: object) -> Variant:
         metadata=dict(metadata),
         output_suffix=suffix,
         ensure_in_front_matter=_str_list(raw, "ensure_in_front_matter"),
+        mermaid=_load_mermaid(raw.get("mermaid", {})),
     )
 
 
@@ -248,6 +285,7 @@ def load_profile(path: Path) -> Profile:
         resource_root=resource_root,
         variants=variants,
         builtins=builtins,
+        mermaid=_load_mermaid(data.get("mermaid", {})),
     )
 
 
@@ -455,6 +493,9 @@ def plan_job(
     no_css: bool = False,
     include_before: list[Path] | None = None,
     cwd: Path | None = None,
+    format: str | None = None,
+    no_mermaid: bool = False,
+    verbose: bool = False,
 ) -> Job:
     work = (cwd or Path.cwd()).resolve()
     source, builtin = resolve_source(target, profile, work)
@@ -479,16 +520,26 @@ def plan_job(
             raise SystemExit(f"error: CSS missing: {PLAIN_CONFIDENTIAL_CSS}")
         variant = plain_confidential_variant()
 
+    output_format = format or (
+        output.suffix.lower()[1:] if output and output.suffix.lower() in {".pdf", ".html"}
+        else "pdf"
+    )
+    if output_format not in {"pdf", "html"}:
+        raise SystemExit("error: format must be html or pdf")
     extra: list[str] = []
+    include_sources = []
     for raw in include_before or []:
         path = raw if raw.is_absolute() else (work / raw)
         path = path.resolve()
         if not path.is_file():
             raise SystemExit(f"error: include file missing: {path}")
-        extra.append(path.read_text(encoding="utf-8"))
+        content = path.read_text(encoding="utf-8")
+        extra.append(content)
+        include_sources.append((path, content))
 
     if output is None:
         out = builtin.output if builtin is not None else source.with_suffix(".pdf")
+        out = out.with_suffix(f".{output_format}")
         if variant and variant.output_suffix:
             out = out.with_name(out.stem + variant.output_suffix + out.suffix)
     else:
@@ -529,14 +580,28 @@ def plan_job(
 
     job_cwd = roots[0]
     metadata = dict(variant.metadata) if variant is not None else {}
+    mermaid = {"theme": "neutral", "fontFamily": "Helvetica, Arial, sans-serif"}
+    for settings in (profile.mermaid if profile else {}, variant.mermaid if variant else {}):
+        variables = {**mermaid.get("themeVariables", {}), **settings.get("themeVariables", {})}
+        mermaid.update(settings)
+        if variables:
+            mermaid["themeVariables"] = variables
+    if variant:
+        include_sources.extend((item.source, item.text) for item in variant.includes if item.source)
     return Job(
         source=source,
         output=out,
         markdown=prepared,
         css=css_files,
         metadata=metadata,
-        resource_path=":".join(str(path) for path in roots),
+        resource_path=os.pathsep.join(str(path) for path in roots),
         cwd=job_cwd,
+        format=output_format,
+        no_mermaid=no_mermaid,
+        verbose=verbose,
+        mermaid=mermaid,
+        original_markdown=text,
+        include_sources=include_sources,
     )
 
 
@@ -554,54 +619,87 @@ def pandoc_env(weasy: str) -> dict[str, str]:
     return env
 
 
-def render(job: Job) -> None:
-    pandoc = which_pandoc()
-    weasy = resolve_weasyprint()
-    if not pandoc or not weasy:
-        print(INSTALL_HELP, file=sys.stderr)
-        missing = []
-        if not pandoc:
-            missing.append("pandoc")
-        if not weasy:
-            missing.append("weasyprint")
-        raise SystemExit(f"error: missing required tool(s): {', '.join(missing)}")
+def _run(cmd: list[str], job: Job, *, input: str | None = None,
+         env: dict[str, str] | None = None) -> str:
+    if job.verbose:
+        print("running:", shlex.join(cmd), file=sys.stderr)
+    try:
+        result = subprocess.run(cmd, input=input, capture_output=True, text=True,
+                                check=True, cwd=str(job.cwd), env=env)
+    except (OSError, subprocess.CalledProcessError) as exc:
+        detail = exc.stderr.strip() if isinstance(exc, subprocess.CalledProcessError) else str(exc)
+        raise SystemExit(f"error: {Path(cmd[0]).name} failed: {detail}") from exc
+    if result.stderr.strip():
+        print(result.stderr.strip(), file=sys.stderr)
+    return result.stdout
 
-    job.output.parent.mkdir(parents=True, exist_ok=True)
-    with tempfile.TemporaryDirectory(prefix="quire-") as tmp:
-        tmp_md = Path(tmp) / "doc.md"
-        tmp_md.write_text(job.markdown, encoding="utf-8")
-        cmd = [
-            pandoc,
-            str(tmp_md),
-            "-f",
-            "markdown",
-            "-t",
-            "html5",
-            "-o",
-            str(job.output),
-            f"--pdf-engine={weasy}",
-            f"--resource-path={job.resource_path}",
-            "--standalone",
-            "-V",
-            "margin-top=20",
-            "-V",
-            "margin-bottom=20",
-            "-V",
-            "margin-left=18",
-            "-V",
-            "margin-right=18",
-            "--metadata",
-            "lang=en",
-        ]
-        for css in job.css:
-            cmd.append(f"--css={css}")
-        for key, value in job.metadata.items():
-            cmd.extend(["--metadata", f"{key}={value}"])
-        print("running:", " ".join(cmd), file=sys.stderr)
+
+def render(job: Job) -> None:
+    from quire_html import Resources
+    from quire_mermaid import code_blocks, render_blocks, source_locations
+
+    pandoc = which_pandoc()
+    if not pandoc:
+        raise SystemExit("error: missing pandoc; install it before building PDF or HTML")
+    weasy = resolve_weasyprint() if job.format == "pdf" else None
+    if job.format == "pdf" and not weasy:
+        raise SystemExit("error: missing WeasyPrint; run python3 install.py\n" + INSTALL_HELP)
+
+    roots = [Path(path) for path in job.resource_path.split(os.pathsep)]
+    resources = Resources(roots)
+    # CSS is embedded before the renderer sees it, so fonts never need fetching.
+    css = []
+    for path in job.css:
+        resources.active.add(path.resolve())
         try:
-            subprocess.run(cmd, check=True, env=pandoc_env(weasy), cwd=str(job.cwd))
-        except subprocess.CalledProcessError as exc:
-            raise SystemExit(f"error: pandoc failed with exit {exc.returncode}") from exc
+            css.append(resources.css(path.read_text(encoding="utf-8"), path.parent))
+        finally:
+            resources.active.remove(path.resolve())
+    def parse(text):
+        return json.loads(_run([pandoc, "-f", "markdown", "-t", "json"], job, input=text))
+
+    ast = parse(job.markdown)
+    locations = source_locations(job, parse) if not job.no_mermaid and any(code_blocks(ast)) else None
+    has_diagrams = render_blocks(ast, job, "\n".join(css), locations=locations)
+    cmd = [pandoc, "-f", "json", "-t", "html5", "--standalone", "--metadata", "lang=en"]
+    if "title" not in ast.get("meta", {}) and "pagetitle" not in ast.get("meta", {}):
+        cmd.extend(["--metadata", f"pagetitle={job.source.stem}"])
+    # An existing stylesheet suppresses Pandoc's default document CSS.
+    for path in job.css:
+        cmd.append(f"--css={path}")
+    for key, value in job.metadata.items():
+        cmd.extend(["--metadata", f"{key}={value}"])
+    document = _run(cmd, job, input=json.dumps(ast))
+    document = resources.document(document)
+    if has_diagrams:
+        safety = ('<style>.quire-diagram { break-inside:avoid; page-break-inside:avoid; '
+                  'max-width:100%; margin:1em 0; line-height:0; } '
+                  '.quire-diagram > svg { display:block; max-width:100%; height:auto; }</style>')
+        document = document.replace("</head>", safety + "\n</head>", 1)
+    if job.format == "html":
+        policy = ("default-src 'none'; img-src data:; style-src 'unsafe-inline' data:; "
+                  "font-src data:; media-src data:; base-uri 'none'; form-action 'none'")
+        document = document.replace("<head>", '<head>\n<meta http-equiv="Content-Security-Policy" '
+                                    f'content="{policy}">', 1)
+    job.output.parent.mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory(prefix=".quire-", dir=job.output.parent) as temporary:
+        folder = Path(temporary)
+        prepared = folder / "document.html"
+        prepared.write_text(document, encoding="utf-8")
+        if job.format == "pdf":
+            interpreter = ENGINE_DIR / ".venv" / "bin" / "python"
+            if not interpreter.is_file():
+                interpreter = Path(weasy).parent / "python"
+            if not interpreter.is_file():
+                interpreter = Path(sys.executable)
+            result = folder / "document.pdf"
+            cmd = [str(interpreter), str(ENGINE_DIR / "quire_pdf.py"), str(prepared), str(result)]
+            if job.verbose:
+                cmd.append("--verbose")
+            _run(cmd, job, env=pandoc_env(weasy))
+        else:
+            result = prepared
+        os.replace(result, job.output)
     print(f"wrote {job.output}")
 
 
@@ -705,8 +803,14 @@ def _parser(
         "--output",
         type=Path,
         default=None,
-        help="Output PDF path (default: beside the source, or the built-in path)",
+        help="Output path; .html or .pdf selects the format (default: PDF beside the source)",
     )
+    parser.add_argument("--format", choices=("html", "pdf"), default=None,
+                        help="Output format; overrides the output extension")
+    parser.add_argument("--no-mermaid", action="store_true",
+                        help="Keep Mermaid diagrams as code blocks")
+    parser.add_argument("-v", "--verbose", action="store_true",
+                        help="Print commands, diagram rendering, and cache hits to stderr")
     parser.add_argument(
         "--resource-path",
         type=Path,
@@ -780,7 +884,7 @@ def main(
     user_config: UserConfig | None = None,
 ) -> None:
     if description is None:
-        description = "Build a PDF from Markdown (pandoc + WeasyPrint)."
+        description = "Build PDF or self-contained HTML from Markdown."
     if prog is None:
         prog = os.environ.get("QUIRE_PROG") or "quire"
     args_in = list(sys.argv[1:] if argv is None else argv)
@@ -833,6 +937,9 @@ def main(
         css=args.css,
         no_css=args.no_css,
         include_before=args.include_before,
+        format=args.format,
+        no_mermaid=args.no_mermaid,
+        verbose=args.verbose,
     )
     render(job)
 

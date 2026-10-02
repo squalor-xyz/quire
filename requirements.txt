@@ -1,3 +1,5 @@
-# PDF engine for: pandoc --pdf-engine=weasyprint
+# PDF engine for Quire's shared HTML pipeline.
 # Pandoc itself is a system install (brew install pandoc).
-weasyprint>=62.0
+# PDF fitting uses the private page-box API verified on WeasyPrint 70.
+# Releases before 71 keep that API; 62–69 use the older URL fetcher.
+weasyprint>=62.0,<71

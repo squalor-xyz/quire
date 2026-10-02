@@ -13,6 +13,11 @@ do not inspect a parent checkout or depend on its layout.
   mark, used when `--confidential` is set and no profile is selected.
 - `test_quire.py`: stdlib unittest suite with temporary, generic profiles.
 - `requirements.txt`: WeasyPrint, the only direct pip dependency.
+- `quire_html.py`, `quire_mermaid.py`, `quire_pdf.py`: offline resource embedding,
+  diagram rendering/cache, and PDF page fitting.
+- `mermaid-render.mjs`: browser worker using the locked optional Mermaid runtime.
+- `test_render.py`: rendering unit tests included by `test_quire.py`.
+- `test_render_integration.py`: explicit real-tool acceptance tests.
 
 Requires Python 3.11 or newer (`tomllib`). Brand profiles and assets belong in
 separate directories. Do not add brand CSS, fragments, or wrapper scripts here.
@@ -45,6 +50,13 @@ write outside this repository.
 
 A real render additionally needs Pandoc, WeasyPrint, and its native libraries.
 Report whether rendering was checked; unit tests alone do not verify PDF output.
+
+Optional real-tool acceptance checks use `python3 test_render_integration.py`.
+They need Node/npm, the locked local Mermaid runtime and Chromium, and Poppler
+in addition to PDF tools. Keep their caches and artifacts inside the checkout.
+Do not add network access during document builds or install dependencies
+automatically at build time. The explicit `--with-mermaid` installer option is
+the only installer path that sets up the Node runtime dependencies.
 
 ## Change boundaries
 
