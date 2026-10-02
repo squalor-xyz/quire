@@ -617,7 +617,7 @@ class VersionTests(unittest.TestCase):
                 patch.object(quire, "load_user_config", side_effect=AssertionError("config")), \
                 redirect_stdout(buf):
             quire.main(["--version"])
-        self.assertEqual(buf.getvalue(), "quire 1.0.0\n")
+        self.assertEqual(buf.getvalue(), "quire 1.0.1\n")
 
 
 if __name__ == "__main__":

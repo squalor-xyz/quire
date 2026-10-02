@@ -104,3 +104,18 @@ sequenceDiagram
   Reader->>Writer: Request
   Writer-->>Reader: Reply
 ```
+
+## Example 12
+
+The diagram stays with this heading.
+
+```mermaid
+flowchart TD
+  A["First line<br/>Second line"] --> B["Main label<br/><small>Small detail</small>"]
+  B --> C[(Cylinder)]
+  C --> D[Four]
+  D --> E[Five]
+  E --> F[Six]
+  F --> G[Seven]
+  G --> H[Eight]
+```

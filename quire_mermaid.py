@@ -16,7 +16,7 @@ from collections import defaultdict, deque
 from pathlib import Path
 from xml.etree import ElementTree as ET
 
-NORMALIZATION_VERSION = 1
+NORMALIZATION_VERSION = 2
 SVG_NS = "http://www.w3.org/2000/svg"
 
 

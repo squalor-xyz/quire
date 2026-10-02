@@ -28,7 +28,7 @@ import tomllib
 from dataclasses import dataclass, field
 from pathlib import Path
 
-__version__ = "1.0.0"
+__version__ = "1.0.1"
 
 ENGINE_DIR = Path(__file__).resolve().parent
 PLAIN_CSS = ENGINE_DIR / "plain.css"
@@ -674,9 +674,13 @@ def render(job: Job) -> None:
     document = _run(cmd, job, input=json.dumps(ast))
     document = resources.document(document)
     if has_diagrams:
+        family = "".join(char for char in job.mermaid.get("fontFamily", "") if char not in "<>{}")
+        family = family or "Helvetica, Arial, sans-serif"
         safety = ('<style>.quire-diagram { break-inside:avoid; page-break-inside:avoid; '
+                  'break-before:avoid; page-break-before:avoid; '
                   'max-width:100%; margin:1em 0; line-height:0; } '
-                  '.quire-diagram > svg { display:block; max-width:100%; height:auto; }</style>')
+                  '.quire-diagram > svg { display:block; max-width:100%; height:auto; } '
+                  f'.quire-diagram text {{ font-family:{family}; }}</style>')
         document = document.replace("</head>", safety + "\n</head>", 1)
     if job.format == "html":
         policy = ("default-src 'none'; img-src data:; style-src 'unsafe-inline' data:; "

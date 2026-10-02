@@ -9,6 +9,29 @@ from pathlib import Path
 from urllib.parse import urlsplit
 
 
+DEFAULT_DIAGRAM_HEIGHT = 0.65
+
+
+def diagram_height_ratio(document: str) -> float:
+    """Percentage max-height on diagram SVGs, or 65% when none is declared."""
+    ratio = DEFAULT_DIAGRAM_HEIGHT
+    for style in re.findall(r"(?is)<style[^>]*>(.*?)</style>", document):
+        style = re.sub(r"(?s)/\*.*?\*/", "", style)
+        for block in style.split("}"):
+            if "{" not in block:
+                continue
+            selector, body = block.split("{", 1)
+            if "quire-diagram" not in selector or "svg" not in selector:
+                continue
+            match = re.search(r"(?:^|;)\s*max-height\s*:\s*([0-9.]+)\s*%", body)
+            if not match:
+                continue
+            value = float(match.group(1)) / 100
+            if value > 0:
+                ratio = value
+    return ratio
+
+
 def diagrams(document):
     for page in document.pages:
         page_box = page._page_box
@@ -43,6 +66,7 @@ def render_pdf(source: Path, output: Path) -> None:
     logging.getLogger("weasyprint").setLevel(logging.WARNING if "--verbose" in sys.argv else logging.ERROR)
 
     text = source.read_text(encoding="utf-8")
+    ratio = diagram_height_ratio(text)
     caps = {}
     for _ in range(8):
         sizing = "\n".join(
@@ -54,11 +78,10 @@ def render_pdf(source: Path, output: Path) -> None:
         )
         next_caps = dict(caps)
         for index, box, page, (width, height) in diagrams(document):
+            chrome = (box.margin_top + box.margin_bottom + box.padding_top + box.padding_bottom
+                      + box.border_top_width + box.border_bottom_width)
             available_width = min(box.width, page.width)
-            available_height = page.height - (
-                box.margin_top + box.margin_bottom + box.padding_top + box.padding_bottom
-                + box.border_top_width + box.border_bottom_width
-            )
+            available_height = min(page.height * ratio, page.height - chrome)
             if available_width <= 0 or available_height <= 0:
                 raise ValueError(f"diagram {index} has no printable page area")
             scale = min(1, available_width / width, available_height / height)

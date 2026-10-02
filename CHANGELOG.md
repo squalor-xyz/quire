@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.0.1
+
+- Cap each PDF diagram at 65% of the page content height, or at the `max-height` percentage on `.quire-diagram > svg`. Diagrams are never enlarged past their intrinsic size.
+- Keep headings with the diagram that follows them.
+- Render flowchart labels as centred SVG text. Line breaks remain line breaks, and `<small>` text is drawn smaller.
+- Changing the diagram font renders again instead of reusing a cached image.
+
 ## 1.0.0
 
 First public release.

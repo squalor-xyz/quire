@@ -196,7 +196,15 @@ to the `neutral` theme and `Helvetica, Arial, sans-serif`.
 Use fonts available to both Chromium and WeasyPrint, or declare local font files
 with `@font-face` in the selected CSS. Keep font declarations outside print-only
 media queries so the diagram renderer can load them. Remote fonts and resources
-are rejected. Changing the selected stylesheet invalidates diagram cache entries.
+are rejected. Diagram text uses this `font_family`. Flowchart labels are SVG
+text, centred in their nodes. Changing the font or the selected stylesheet
+invalidates diagram cache entries.
+
+Plain and confidential stylesheets cap each diagram SVG at 65% of the page
+content height and the full content width. The PDF fitter applies the
+`max-height` percentage on `.quire-diagram > svg` and never draws a diagram
+larger than its intrinsic size. Set that percentage in a profile stylesheet to
+override it. When the stylesheet does not declare one, the cap stays 65%.
 
 PDF and HTML share profile selection, variants, includes, and CSS. Use
 `--format html` or `-o document.html` for a standalone HTML document. `--no-css`

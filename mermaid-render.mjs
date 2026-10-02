@@ -36,6 +36,38 @@ async function normalizeLabels(page) {
         if (value && property.startsWith('stop-')) element.setAttribute(property, value);
       }
     }
+    // htmlLabels is off, so <small> survives as literal text. Drop the tags after
+    // computed font sizes are copied, and keep that text smaller.
+    for (const text of svg.querySelectorAll('text')) {
+      let small = false;
+      for (const span of [...text.querySelectorAll('tspan')]) {
+        const parts = span.textContent.split(/(<\/?small>|<br\s*\/?>)/i);
+        let value = '';
+        let marked = false;
+        for (const part of parts) {
+          if (/^<small>$/i.test(part)) {
+            small = true;
+            marked = true;
+            continue;
+          }
+          if (/^<\/small>$/i.test(part)) {
+            small = false;
+            continue;
+          }
+          if (!part || /^<br/i.test(part)) continue;
+          if (small) marked = true;
+          value += part;
+        }
+        if (!value.trim()) {
+          span.remove();
+          continue;
+        }
+        span.textContent = value;
+        if (!marked) continue;
+        const size = parseFloat(span.style.fontSize);
+        if (size) span.style.fontSize = `${size * 0.8}px`;
+      }
+    }
     const canvas = document.createElement('canvas');
     const context = canvas.getContext('2d');
     for (const foreign of [...svg.querySelectorAll('foreignObject')]) {
@@ -197,7 +229,7 @@ async function main() {
     await page.evaluate(async ({ source, config, seed }) => {
       const mermaid = window.quireMermaid;
       mermaid.initialize({
-        ...config, htmlLabels: true, securityLevel: 'strict',
+        ...config, htmlLabels: false, securityLevel: 'strict',
         deterministicIds: true, deterministicIDSeed: seed,
         secure: ['secure', 'securityLevel', 'startOnLoad', 'maxTextSize', 'maxEdges',
           'deterministicIds', 'deterministicIDSeed', 'theme', 'fontFamily', 'themeVariables', 'htmlLabels'],

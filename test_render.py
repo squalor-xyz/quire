@@ -17,6 +17,7 @@ import install
 import quire
 from quire_html import Resources
 from quire_mermaid import MermaidRenderer, annotated_fences, fence_locations, prefix_svg, render_blocks, validate_svg
+from quire_pdf import diagram_height_ratio
 
 ROOT = Path(__file__).parent
 SVG = ('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 60" id="chart">'
@@ -66,6 +67,12 @@ class RenderTests(unittest.TestCase):
                       {"theme_variables": []}, {"unknown": True}):
             with self.subTest(value=value), self.assertRaises(SystemExit):
                 quire._load_mermaid(value)
+
+    def test_diagram_height_ratio_reads_the_stylesheet(self):
+        self.assertEqual(diagram_height_ratio("<style>p { color: red }</style>"), 0.65)
+        declared = "<style>.quire-diagram > svg { max-width: 100%; max-height: 50%; }</style>"
+        self.assertEqual(diagram_height_ratio(declared), 0.5)
+        self.assertEqual(diagram_height_ratio(declared + "<style>.quire-diagram svg{max-height:40%}</style>"), 0.4)
 
     def test_cli_flags(self):
         parser = quire._parser(None, "test", "quire")

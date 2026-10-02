@@ -64,19 +64,25 @@ class IntegrationTests(unittest.TestCase):
             return original(renderer, args, payload)
         with patch.object(MermaidRenderer, "_call", recorded):
             html, _ = self.build(format="html")
-            self.assertEqual(len(calls), 11)
+            self.assertEqual(len(calls), 12)
             calls.clear()
             pdf, verbose = self.build(format="pdf", verbose=True)
             self.assertEqual(calls, [])
-            self.assertEqual(verbose.count('cache hit'), 11)
+            self.assertEqual(verbose.count('cache hit'), 12)
         content = html.output.read_text()
-        self.assertEqual(content.count('data-quire-diagram="'), 11)
+        self.assertEqual(content.count('data-quire-diagram="'), 12)
         self.assertNotIn('class="mermaid"', content)
         self.assertNotIn('foreignObject', content)
-        self.assertIn('font-size: 13.', content)
+        self.assertNotIn('textLength', content)
+        self.assertNotIn('&lt;small&gt;', content)
+        self.assertIn('text-anchor: middle', content)
+        self.assertIn('font-size: 12.8px', content)
         text = self.pdf_text(pdf.output)
-        for label in ("Small detail", "First line", "Second line", "PERSON", "DOCUMENT", "Reply"):
+        for label in ("First line", "Second line", "Cylinder", "PERSON", "DOCUMENT", "Reply"):
             self.assertIn(label, text)
+        self.assertIn("Small detail", re.sub(r"\s+", " ", text))
+        pages = text.split('\f')
+        self.assertTrue(any('Example 12' in page and 'Cylinder' in page for page in pages))
         self.assertNotIn("flowchart", text)
         self.assertNotIn("erDiagram", text)
         subprocess.run(["node", str(ROOT / "test-html-offline.mjs"), str(html.output)], check=True,
@@ -91,6 +97,30 @@ class IntegrationTests(unittest.TestCase):
             destination.mkdir(parents=True, exist_ok=True)
             for artifact in (html.output, pdf.output, *self.root.glob('page-*.png')):
                 shutil.copyfile(artifact, destination / artifact.name)
+
+    def test_tall_diagram_stays_with_its_heading(self):
+        nodes = '\n'.join(f'  N{i} --> N{i + 1}' for i in range(1, 18))
+        self.source.write_text(
+            '## Tall layout\n\nOne short paragraph.\n\n```mermaid\nflowchart TD\n'
+            + nodes + '\n```\n', encoding='utf-8')
+        pdf, _ = self.build()
+        pages = [page for page in self.pdf_text(pdf.output).split('\f') if page.strip()]
+        self.assertEqual(len(pages), 1)
+        self.assertIn('Tall layout', pages[0])
+        self.assertIn('N1', pages[0])
+        self.assertIn('N18', pages[0])
+
+    def test_font_change_rerenders(self):
+        cache = self.root / 'font-cache'
+        source = 'flowchart LR\n A[One]-->B[Two]'
+        first = MermaidRenderer(ROOT, {'theme': 'neutral', 'fontFamily': 'Helvetica'}, '', True, cache)
+        second = MermaidRenderer(ROOT, {'theme': 'neutral', 'fontFamily': 'Times'}, '', True, cache)
+        with redirect_stderr(io.StringIO()) as original:
+            first.render(source, 1)
+        with redirect_stderr(io.StringIO()) as changed:
+            second.render(source, 1)
+        self.assertIn('rendering', original.getvalue())
+        self.assertIn('rendering', changed.getvalue())
 
     def test_custom_pages_and_all_variants(self):
         (self.root / "page.css").write_text(
