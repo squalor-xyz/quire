@@ -3,14 +3,19 @@ name: Test
 on:
   push:
   pull_request:
+  workflow_dispatch:
 
 jobs:
   unit:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
+      - name: Fetch commit
+        run: |
+          git init .
+          git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
+          git fetch --depth 1 origin "${GITHUB_REF}"
+          git checkout --detach FETCH_HEAD
       - name: Unit tests
-        run: python3 test_quire.py
+        run: |
+          python3 -c 'import sys; raise SystemExit("Python 3.11 or newer is required") if sys.version_info < (3, 11) else None'
+          python3 test_quire.py

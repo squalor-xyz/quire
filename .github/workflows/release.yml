@@ -3,6 +3,12 @@ name: Release
 on:
   push:
     tags: ["v*.*.*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing tag to publish, such as v1.0.0
+        required: true
+        type: string
 
 permissions:
   contents: write
@@ -11,42 +17,63 @@ jobs:
   release:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Fetch tag
+        env:
+          RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+        run: |
+          python3 -c 'import os, re, sys; tag = os.environ["RELEASE_TAG"]; sys.exit("invalid release tag") if not re.fullmatch(r"v[0-9]+[.][0-9]+[.][0-9]+", tag) else None'
+          git init .
+          git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
+          git fetch --depth 1 origin "refs/tags/${RELEASE_TAG}"
+          git checkout --detach FETCH_HEAD
+          echo "RELEASE_TAG=${RELEASE_TAG}" >> "${GITHUB_ENV}"
       - name: Publish GitHub release
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const fs = require("fs");
-            const tag = context.ref.replace("refs/tags/", "");
-            const version = tag.replace(/^v/, "");
-            const escaped = version.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-            const changelog = fs.readFileSync("CHANGELOG.md", "utf8");
-            const heading = new RegExp(`^## ${escaped}\\s*$`, "m");
-            const match = heading.exec(changelog);
-            if (!match) {
-              core.setFailed(`CHANGELOG.md has no section for ${version}`);
-              return;
-            }
-            const rest = changelog.slice(match.index + match[0].length);
-            const next = rest.search(/^## /m);
-            const body = (next === -1 ? rest : rest.slice(0, next)).trim();
-            try {
-              await github.rest.repos.getReleaseByTag({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                tag,
-              });
-              core.info(`Release ${tag} already exists`);
-              return;
-            } catch (error) {
-              if (error.status !== 404) {
-                throw error;
-              }
-            }
-            await github.rest.repos.createRelease({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              tag_name: tag,
-              name: tag,
-              body,
-            });
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+          import re
+          import urllib.error
+          import urllib.request
+
+          tag = os.environ["RELEASE_TAG"]
+          version = tag[1:]
+          changelog = open("CHANGELOG.md", encoding="utf-8").read()
+          match = re.search(rf"^## {re.escape(version)}\s*$", changelog, re.M)
+          if not match:
+              raise SystemExit(f"CHANGELOG.md has no section for {version}")
+          rest = changelog[match.end():]
+          next_heading = re.search(r"^## ", rest, re.M)
+          body = (rest[:next_heading.start()] if next_heading else rest).strip()
+
+          repository = os.environ["GITHUB_REPOSITORY"]
+          headers = {
+              "Authorization": f"Bearer {os.environ['GITHUB_TOKEN']}",
+              "Accept": "application/vnd.github+json",
+              "X-GitHub-Api-Version": "2022-11-28",
+              "User-Agent": "quire-release",
+          }
+
+          def request(method, url, payload=None):
+              data = None if payload is None else json.dumps(payload).encode()
+              req = urllib.request.Request(url, data=data, headers=headers, method=method)
+              try:
+                  with urllib.request.urlopen(req) as response:
+                      return response.status, response.read()
+              except urllib.error.HTTPError as error:
+                  return error.code, error.read()
+
+          api = f"https://api.github.com/repos/{repository}/releases"
+          status, payload = request("GET", f"{api}/tags/{tag}")
+          if status == 200:
+              print(f"Release {tag} already exists")
+          elif status == 404:
+              status, payload = request("POST", api, {"tag_name": tag, "name": tag, "body": body})
+              if status not in (200, 201):
+                  raise SystemExit(payload.decode())
+              print(f"Created release {tag}")
+          else:
+              raise SystemExit(payload.decode() or f"lookup failed: {status}")
+          PY
