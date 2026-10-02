@@ -17,5 +17,9 @@ jobs:
           git checkout --detach FETCH_HEAD
       - name: Unit tests
         run: |
-          python3 -c 'import sys; raise SystemExit("Python 3.11 or newer is required") if sys.version_info < (3, 11) else None'
+          python3 - <<'PY'
+          import sys
+          if sys.version_info < (3, 11):
+              raise SystemExit("Python 3.11 or newer is required")
+          PY
           python3 test_quire.py

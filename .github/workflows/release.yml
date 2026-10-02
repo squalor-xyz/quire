@@ -21,7 +21,14 @@ jobs:
         env:
           RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
         run: |
-          python3 -c 'import os, re, sys; tag = os.environ["RELEASE_TAG"]; sys.exit("invalid release tag") if not re.fullmatch(r"v[0-9]+[.][0-9]+[.][0-9]+", tag) else None'
+          python3 - <<'PY'
+          import os
+          import re
+          import sys
+          tag = os.environ["RELEASE_TAG"]
+          if not re.fullmatch(r"v[0-9]+[.][0-9]+[.][0-9]+", tag):
+              raise SystemExit("invalid release tag")
+          PY
           git init .
           git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
           git fetch --depth 1 origin "refs/tags/${RELEASE_TAG}"
