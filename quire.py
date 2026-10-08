@@ -30,7 +30,7 @@ from pathlib import Path
 
 from quire_mermaid import front_matter_end
 
-__version__ = "1.0.2"
+__version__ = "1.1.0"
 
 ENGINE_DIR = Path(__file__).resolve().parent
 PLAIN_CSS = ENGINE_DIR / "plain.css"
