@@ -71,6 +71,7 @@ quire notes.md -o notes.html            # Standalone HTML
 quire notes.md --format html            # Writes notes.html
 quire notes.md --no-mermaid              # Leave diagrams as code
 quire notes.md -v                        # Commands, renders, and cache hits
+quire *.md                               # Build several documents
 ```
 
 `--confidential` with no profile uses `plain-confidential.css`, prepends a
@@ -81,9 +82,15 @@ Pass `--no-config` when a profile is your default and the document should
 stay unbranded. `--letterhead` still requires a profile.
 
 Input files must end in `.md` or `.markdown`. Output directories are created
-automatically; an existing output PDF is overwritten. `--css` and
+automatically; an existing output PDF is overwritten, but an output path that
+is the source file is an error. `--css` and
 `--include-before` can be repeated. `--no-css` takes precedence over `--css`.
 Relative command-line paths resolve from the working directory.
+
+Several targets build in order with the same options, each to its default
+output. Every target is checked before anything is written, and the first
+failed build stops the run. `-o` takes a single target, and two targets that
+would write the same file are an error.
 
 An explicit `--format html|pdf` overrides the output extension; an explicit `-o`
 path is preserved even if its extension disagrees. Otherwise `.html` and `.pdf`
@@ -120,10 +127,13 @@ quire --config acme notes.md
 acme-pdf notes.md
 quire --profile /path/to/profile notes.md
 quire configs
+quire default acme        # Use acme when no profile is chosen
+quire default --clear     # Back to plain output
+quire remove acme         # Unregister; the profile directory is kept
 ```
 
 Registration stores the profile's path and creates an `acme-pdf` shortcut;
-it does not copy assets or select a default. `--no-command` skips the shortcut.
+it does not copy assets or select a default; `quire default` does that. `--no-command` skips the shortcut.
 With a profile, `--letterhead` and `--confidential` select that profile's
 matching variant.
 
@@ -135,6 +145,8 @@ See [Profiles](docs/profiles.md) for defaults, selection order, and authoring.
 quire --version
 quire --help
 quire install --help
+quire default --help
+quire remove --help
 python3 install.py --help
 python3 test_quire.py
 ```

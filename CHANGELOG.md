@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+- Refuse to build when the output path is the source file. Previously `quire notes.md -o notes.md` replaced the Markdown with the PDF.
+- Run the PDF worker with the interpreter named by the chosen `weasyprint` script. A WeasyPrint on PATH (Homebrew, pipx) previously ran under `.venv/bin/python` or the launching Python, which may not import it.
+- `python3 install.py --python PATH` now requires `--skip-venv`. Previously it was ignored, and the launchers used `.venv`.
+- Recognize YAML front matter as Pandoc does: a `---` opener not followed by a blank line, closed by `---` or `...`, with an optional byte order mark. A document that starts with a horizontal rule is no longer read as front matter.
+- Add `quire default NAME` and `quire default --clear` to set or clear the default profile without editing `config.toml`.
+- Add `quire remove NAME` to unregister a profile and delete its `NAME-pdf` shortcut. Shortcuts Quire did not write and profile directories are left alone.
+- Accept several targets in one call, as in `quire *.md`. All targets are checked before any is built.
+
 ## 1.0.2
 
 - Keep `<small>` sub-labels below the line above them. Each line advances by the height of the larger line.

@@ -14,6 +14,7 @@ from __future__ import annotations
 import argparse
 import os
 import re
+import shlex
 import shutil
 import stat
 import subprocess
@@ -58,8 +59,11 @@ def config_template(name: str, profile: Path) -> str:
     )
 
 
-def upsert_profile(text: str, name: str, profile: Path) -> str:
-    """Set profiles.<name> and leave every other line alone."""
+PROFILES_HEADER = re.compile(r"\s*\[\s*(?:profiles|\"profiles\"|'profiles')\s*\]\s*(?:#.*)?")
+
+
+def parse_config(text: str) -> tuple[dict, dict]:
+    """Parse config text for an edit; return the document and its profiles."""
     try:
         original = tomllib.loads(text)
     except tomllib.TOMLDecodeError as exc:
@@ -67,39 +71,11 @@ def upsert_profile(text: str, name: str, profile: Path) -> str:
     profiles = original.get("profiles", {})
     if not isinstance(profiles, dict):
         raise SystemExit("error: config [profiles] must be a table; file left unchanged")
-    expected = dict(original)
-    expected["profiles"] = {**profiles, name: str(profile)}
-    if not text.strip():
-        return config_template(name, profile)
-    assignment = f'{name} = "{toml_escape(str(profile))}"'
-    lines = text.splitlines()
-    start = None
-    for index, line in enumerate(lines):
-        if re.fullmatch(r"\s*\[\s*(?:profiles|\"profiles\"|'profiles')\s*\]\s*(?:#.*)?", line):
-            start = index
-            break
-    if start is None:
-        suffix = text
-        if suffix and not suffix.endswith("\n"):
-            suffix += "\n"
-        rendered = suffix + "\n[profiles]\n" + assignment + "\n"
-    else:
-        end = len(lines)
-        for index in range(start + 1, len(lines)):
-            if lines[index].lstrip().startswith("["):
-                end = index
-                break
-        key = re.escape(name)
-        assignment_re = re.compile(rf"\s*(?:{key}|\"{key}\"|'{key}')\s*=")
-        for index in range(start + 1, end):
-            if assignment_re.match(lines[index]):
-                lines[index] = assignment
-                break
-        else:
-            lines.insert(end, assignment)
-        rendered = "\n".join(lines)
-        if text.endswith("\n"):
-            rendered += "\n"
+    return original, profiles
+
+
+def verified(rendered: str, expected: dict) -> str:
+    """Return the edited text only if it parses to exactly the expected document."""
     try:
         updated = tomllib.loads(rendered)
     except tomllib.TOMLDecodeError as exc:
@@ -109,6 +85,116 @@ def upsert_profile(text: str, name: str, profile: Path) -> str:
     if updated != expected:
         raise SystemExit("error: unsafe config update; file left unchanged")
     return rendered
+
+
+def key_assignment(name: str) -> re.Pattern[str]:
+    key = re.escape(name)
+    return re.compile(rf"\s*(?:{key}|\"{key}\"|'{key}')\s*=")
+
+
+def profiles_section(lines: list[str]) -> tuple[int, int] | None:
+    """Line range of the [profiles] table body, or None when it is absent."""
+    for start, line in enumerate(lines):
+        if PROFILES_HEADER.fullmatch(line):
+            break
+    else:
+        return None
+    for end in range(start + 1, len(lines)):
+        if lines[end].lstrip().startswith("["):
+            return start + 1, end
+    return start + 1, len(lines)
+
+
+def upsert_profile(text: str, name: str, profile: Path) -> str:
+    """Set profiles.<name> and leave every other line alone."""
+    original, profiles = parse_config(text)
+    expected = dict(original)
+    expected["profiles"] = {**profiles, name: str(profile)}
+    if not text.strip():
+        return config_template(name, profile)
+    assignment = f'{name} = "{toml_escape(str(profile))}"'
+    lines = text.splitlines()
+    section = profiles_section(lines)
+    if section is None:
+        suffix = text
+        if suffix and not suffix.endswith("\n"):
+            suffix += "\n"
+        rendered = suffix + "\n[profiles]\n" + assignment + "\n"
+    else:
+        start, end = section
+        assignment_re = key_assignment(name)
+        for index in range(start, end):
+            if assignment_re.match(lines[index]):
+                lines[index] = assignment
+                break
+        else:
+            lines.insert(end, assignment)
+        rendered = "\n".join(lines)
+        if text.endswith("\n"):
+            rendered += "\n"
+    return verified(rendered, expected)
+
+
+def set_default(text: str, name: str) -> str:
+    """Set the top-level default and leave every other line alone. "" clears it."""
+    original, profiles = parse_config(text)
+    if name and name not in profiles:
+        known = ", ".join(sorted(profiles)) or "(none)"
+        raise SystemExit(f"error: unknown config {name!r} (known: {known})")
+    expected = {**original, "default": name}
+    assignment = f'default = "{toml_escape(name)}"'
+    lines = text.splitlines()
+    first_table = next(
+        (index for index, line in enumerate(lines) if line.lstrip().startswith("[")), len(lines)
+    )
+    assignment_re = key_assignment("default")
+    for index in range(first_table):
+        if assignment_re.match(lines[index]):
+            lines[index] = assignment
+            break
+    else:
+        lines.insert(0, assignment)
+    rendered = "\n".join(lines)
+    if text.endswith("\n") or not text:
+        rendered += "\n"
+    return verified(rendered, expected)
+
+
+def remove_profile(text: str, name: str) -> str:
+    """Delete profiles.<name> and leave every other line alone."""
+    original, profiles = parse_config(text)
+    if name not in profiles:
+        known = ", ".join(sorted(profiles)) or "(none)"
+        raise SystemExit(f"error: unknown config {name!r} (known: {known})")
+    if original.get("default") == name:
+        raise SystemExit(
+            f"error: {name} is the default; run `quire default --clear` or choose another first"
+        )
+    expected = dict(original)
+    expected["profiles"] = {key: value for key, value in profiles.items() if key != name}
+    lines = text.splitlines()
+    section = profiles_section(lines)
+    assignment_re = key_assignment(name)
+    matches = [index for index in range(*section) if assignment_re.match(lines[index])] if section else []
+    if not matches:
+        raise SystemExit("error: unsupported config formatting; file left unchanged")
+    del lines[matches[0]]
+    rendered = "\n".join(lines)
+    if text.endswith("\n"):
+        rendered += "\n"
+    return verified(rendered, expected)
+
+
+def is_launcher(path: Path, name: str) -> bool:
+    """True when the file is the shortcut quire would write for this name."""
+    try:
+        text = path.read_text(encoding="utf-8")
+        words = shlex.split(text.splitlines()[-1])
+    except (OSError, UnicodeError, ValueError, IndexError):
+        return False
+    if len(words) != 6 or words[0] != "exec" or Path(words[2]).name != "quire.py":
+        return False
+    return text == launcher_text(Path(words[1]), Path(words[2]), name)
 
 
 def default_config_dir() -> Path:
@@ -317,6 +403,44 @@ def cmd_configs(argv: list[str] | None = None) -> None:
         print(f"{name:<{width}}  {cfg.profiles[name]}{note}")
 
 
+def cmd_default(argv: list[str] | None = None) -> None:
+    parser = argparse.ArgumentParser(
+        prog="quire default",
+        description="Choose the profile used when no other selection applies.",
+    )
+    parser.add_argument("name", nargs="?", default=None, help="Registered config name")
+    parser.add_argument("--clear", action="store_true", help="Use plain output by default")
+    parser.add_argument("--config-dir", type=Path, default=None)
+    args = parser.parse_args(argv)
+    if (args.name is None) == (not args.clear):
+        parser.error("give a config name or --clear")
+    config_path = (args.config_dir or default_config_dir()).expanduser() / "config.toml"
+    existing = config_path.read_text(encoding="utf-8") if config_path.is_file() else ""
+    write_text(config_path, set_default(existing, args.name or ""), False)
+    print(f"default = {args.name}" if args.name else "default cleared")
+
+
+def cmd_remove(argv: list[str] | None = None) -> None:
+    parser = argparse.ArgumentParser(
+        prog="quire remove",
+        description="Unregister a profile name. The profile directory is not touched.",
+    )
+    parser.add_argument("name", help="Registered config name")
+    parser.add_argument("--bin-dir", type=Path, default=None)
+    parser.add_argument("--config-dir", type=Path, default=None)
+    args = parser.parse_args(argv)
+    config_path = (args.config_dir or default_config_dir()).expanduser() / "config.toml"
+    existing = config_path.read_text(encoding="utf-8") if config_path.is_file() else ""
+    write_text(config_path, remove_profile(existing, args.name), False)
+    print(f"removed {args.name} from {config_path}")
+    shortcut = (args.bin_dir or default_bin_dir()).expanduser() / f"{args.name}-pdf"
+    if is_launcher(shortcut, args.name):
+        shortcut.unlink()
+        print(f"removed {shortcut}")
+    elif shortcut.exists():
+        print(f"{shortcut} was not written by quire; left in place", file=sys.stderr)
+
+
 def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description="Install quire and register a PDF config.")
     parser.add_argument(
@@ -337,12 +461,15 @@ def main(argv: list[str] | None = None) -> None:
         action="store_true",
         help="Do not create the venv. Requires --python.",
     )
-    parser.add_argument("--python", type=Path, default=None)
+    parser.add_argument("--python", type=Path, default=None,
+                        help="Interpreter for the launchers. Requires --skip-venv.")
     parser.add_argument("--with-mermaid", action="store_true",
                         help="Install local Mermaid tooling and Chromium; requires Node >=22.13 and npm")
     args = parser.parse_args(argv)
     if args.name and args.profile is None:
         raise SystemExit("error: --name requires --profile")
+    if args.python and not args.skip_venv:
+        raise SystemExit("error: --python requires --skip-venv")
     install(
         bin_dir=args.bin_dir,
         config_dir=args.config_dir or default_config_dir(),

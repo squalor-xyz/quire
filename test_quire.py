@@ -8,7 +8,7 @@ import stat
 import tempfile
 import tomllib
 import unittest
-from contextlib import redirect_stdout
+from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
 from unittest.mock import patch
 
@@ -376,6 +376,13 @@ Hello
                 self.assertEqual(job.output, self.root / "chosen" / "result.pdf")
                 self.assertEqual(job.metadata["confidential"], "true")
 
+    def test_output_cannot_overwrite_source(self) -> None:
+        (self.root / "notes.md").write_text("Hello\n", encoding="utf-8")
+        for output in (Path("notes.md"), self.root / "notes.md", Path("./sub/../notes.md")):
+            with self.subTest(output=output):
+                with self.assertRaisesRegex(SystemExit, "overwrite the source"):
+                    quire.plan_job("notes.md", profile=None, output=output, cwd=self.root)
+
 
 class ConfigFileTests(unittest.TestCase):
     def setUp(self) -> None:
@@ -477,6 +484,16 @@ class ConfigFileTests(unittest.TestCase):
                 self.assertEqual(config_path.read_text(encoding="utf-8"), original)
                 self.assertFalse((root / "bin").exists())
 
+    def test_install_python_requires_skip_venv(self) -> None:
+        with temporary_directory() as tmp:
+            root = Path(tmp)
+            with patch("install.install") as mocked, \
+                    self.assertRaisesRegex(SystemExit, "--python requires --skip-venv"):
+                install.main(["--python", str(root / "python"), "--bin-dir", str(root / "bin"),
+                              "--config-dir", str(root / "config")])
+            mocked.assert_not_called()
+            self.assertFalse((root / "bin").exists())
+
     def test_install_writes_launchers_without_touching_default(self) -> None:
         with temporary_directory() as tmp:
             root = Path(tmp)
@@ -549,6 +566,91 @@ class NamedConfigTests(unittest.TestCase):
         self.assertIn("acme", buf.getvalue())
         self.assertIn(str(profile.resolve()), buf.getvalue())
 
+    def test_default_sets_and_clears_without_touching_other_lines(self) -> None:
+        with temporary_directory() as tmp:
+            root = Path(tmp)
+            config_dir = root / "cfg"
+            bin_dir = root / "bin"
+            for name in ("acme", "other"):
+                quire.main(["install", str(self._profile(root, name)), "--no-command",
+                            "--bin-dir", str(bin_dir), "--config-dir", str(config_dir)])
+            path = config_dir / "config.toml"
+            path.write_text("# mine\n" + path.read_text(encoding="utf-8"), encoding="utf-8")
+            before = path.read_text(encoding="utf-8")
+            with redirect_stdout(io.StringIO()):
+                quire.main(["default", "acme", "--config-dir", str(config_dir)])
+            chosen = path.read_text(encoding="utf-8")
+            with redirect_stdout(io.StringIO()):
+                quire.main(["default", "--clear", "--config-dir", str(config_dir)])
+            cleared = path.read_text(encoding="utf-8")
+        self.assertEqual(chosen, before.replace('default = ""', 'default = "acme"'))
+        self.assertEqual(cleared, before)
+
+    def test_default_inserts_missing_key_and_rejects_unknown_names(self) -> None:
+        original = '# mine\n[profiles]\nacme = "/tmp/acme"\n'
+        updated = install.set_default(original, "acme")
+        self.assertEqual(tomllib.loads(updated)["default"], "acme")
+        self.assertTrue(updated.endswith(original))
+        with temporary_directory() as tmp:
+            config_dir = Path(tmp)
+            path = config_dir / "config.toml"
+            path.write_text(original, encoding="utf-8")
+            for argv in (["missing"], [], ["acme", "--clear"]):
+                with self.subTest(argv=argv), self.assertRaises(SystemExit), \
+                        redirect_stderr(io.StringIO()):
+                    quire.main(["default", *argv, "--config-dir", str(config_dir)])
+            self.assertEqual(path.read_text(encoding="utf-8"), original)
+        with self.assertRaisesRegex(SystemExit, "file left unchanged"):
+            install.set_default('default = """\n[x]\n"""\n[profiles]\nacme = "/a"\n', "acme")
+
+    def test_remove_drops_entry_and_its_launcher_only(self) -> None:
+        with temporary_directory() as tmp:
+            root = Path(tmp)
+            config_dir = root / "cfg"
+            bin_dir = root / "bin"
+            common = ["--bin-dir", str(bin_dir), "--config-dir", str(config_dir)]
+            for name in ("acme", "other"):
+                with redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()):
+                    quire.main(["install", str(self._profile(root, name)), *common])
+            path = config_dir / "config.toml"
+            before = path.read_text(encoding="utf-8")
+            with redirect_stdout(io.StringIO()):
+                quire.main(["remove", "acme", *common])
+            after = path.read_text(encoding="utf-8")
+            self.assertEqual(
+                after, "".join(line for line in before.splitlines(keepends=True)
+                               if not line.startswith("acme ="))
+            )
+            self.assertFalse((bin_dir / "acme-pdf").exists())
+            self.assertTrue((bin_dir / "other-pdf").exists())
+            self.assertTrue((root / "acme" / "profile.toml").is_file())
+
+            (bin_dir / "other-pdf").write_text("#!/bin/sh\necho mine\n", encoding="utf-8")
+            errors = io.StringIO()
+            with redirect_stdout(io.StringIO()), redirect_stderr(errors):
+                quire.main(["remove", "other", *common])
+            self.assertIn("left in place", errors.getvalue())
+            self.assertTrue((bin_dir / "other-pdf").exists())
+            self.assertNotIn("other", tomllib.loads(path.read_text(encoding="utf-8"))["profiles"])
+
+    def test_remove_refuses_default_and_unknown_names(self) -> None:
+        with temporary_directory() as tmp:
+            root = Path(tmp)
+            config_dir = root / "cfg"
+            bin_dir = root / "bin"
+            common = ["--bin-dir", str(bin_dir), "--config-dir", str(config_dir)]
+            with redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()):
+                quire.main(["install", str(self._profile(root, "acme")), *common])
+                quire.main(["default", "acme", "--config-dir", str(config_dir)])
+            path = config_dir / "config.toml"
+            before = path.read_text(encoding="utf-8")
+            with self.assertRaisesRegex(SystemExit, "default --clear"):
+                quire.main(["remove", "acme", *common])
+            with self.assertRaisesRegex(SystemExit, "unknown config"):
+                quire.main(["remove", "missing", *common])
+            self.assertEqual(path.read_text(encoding="utf-8"), before)
+            self.assertTrue((bin_dir / "acme-pdf").exists())
+
     def test_rename_updates_path_and_keeps_default(self) -> None:
         with temporary_directory() as tmp:
             root = Path(tmp)
@@ -608,6 +710,76 @@ class NamedConfigTests(unittest.TestCase):
             )
             self.assertFalse((bin_dir / "acme-pdf").exists())
             self.assertTrue((config_dir / "config.toml").is_file())
+
+
+class FrontMatterTests(unittest.TestCase):
+    keys = ["confidential"]
+    metadata = {"confidential": "true"}
+
+    def test_leading_rules_are_body(self) -> None:
+        for text in ("---\n\nIntro\n\n---\n\nMore\n", "----\n\nIntro\n\n---\n\nMore\n"):
+            with self.subTest(text=text):
+                self.assertEqual(quire.split_front_matter(text), ("", text))
+                ensured = quire.ensure_front_matter(text, self.keys, self.metadata)
+                self.assertEqual(ensured, "---\nconfidential: true\n---\n\n" + text)
+                prefixed = quire.apply_includes(text, [], ["<p>banner</p>"])
+                self.assertTrue(prefixed.lstrip("\n").startswith("<p>banner</p>"))
+
+    def test_dots_close_front_matter(self) -> None:
+        text = "---\ntitle: Plan\n...\n\nBody\n"
+        self.assertEqual(quire.split_front_matter(text), ("---\ntitle: Plan\n...", "\n\nBody\n"))
+        self.assertEqual(
+            quire.ensure_front_matter(text, self.keys, self.metadata),
+            "---\ntitle: Plan\nconfidential: true\n...\n\nBody\n",
+        )
+
+    def test_byte_order_mark_precedes_front_matter(self) -> None:
+        text = "﻿---\ntitle: Plan\n---\nBody\n"
+        self.assertEqual(quire.split_front_matter(text), ("﻿---\ntitle: Plan\n---", "\nBody\n"))
+        self.assertEqual(
+            quire.ensure_front_matter(text, self.keys, self.metadata),
+            "﻿---\ntitle: Plan\nconfidential: true\n---\nBody\n",
+        )
+        self.assertEqual(
+            quire.ensure_front_matter("﻿Body\n", self.keys, self.metadata),
+            "﻿---\nconfidential: true\n---\n\nBody\n",
+        )
+
+    def test_closing_line_must_be_a_delimiter(self) -> None:
+        text = "---\ntitle: Plan\n---- not a close\n---\nBody\n"
+        self.assertEqual(quire.split_front_matter(text)[1], "\nBody\n")
+
+
+class MultipleTargetTests(unittest.TestCase):
+    def setUp(self) -> None:
+        temporary = temporary_directory()
+        self.addCleanup(temporary.cleanup)
+        self.root = Path(temporary.name).resolve()
+        for name in ("one", "two"):
+            (self.root / f"{name}.md").write_text("Hello\n", encoding="utf-8")
+
+    def build(self, *argv: str) -> list:
+        with patch("quire.render") as render:
+            quire.main([*argv, "--no-config"], user_config=quire.UserConfig(default="", profiles={}))
+        return [call.args[0] for call in render.call_args_list]
+
+    def test_each_target_renders_in_order(self) -> None:
+        jobs = self.build(str(self.root / "one.md"), str(self.root / "two.md"), "--format", "html")
+        self.assertEqual([job.output for job in jobs],
+                         [self.root / "one.html", self.root / "two.html"])
+
+    def test_conflicts_fail_before_any_render(self) -> None:
+        one, two = str(self.root / "one.md"), str(self.root / "two.md")
+        for argv, message in (
+            ((one, two, "-o", "out.pdf"), "single target"),
+            ((one, one), "both write"),
+            ((one, str(self.root / "missing.md")), "not found"),
+        ):
+            with self.subTest(argv=argv):
+                with patch("quire.render") as render, self.assertRaisesRegex(SystemExit, message):
+                    quire.main([*argv, "--no-config"],
+                               user_config=quire.UserConfig(default="", profiles={}))
+                render.assert_not_called()
 
 
 class VersionTests(unittest.TestCase):

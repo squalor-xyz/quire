@@ -28,6 +28,8 @@ import tomllib
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from quire_mermaid import front_matter_end
+
 __version__ = "1.0.2"
 
 ENGINE_DIR = Path(__file__).resolve().parent
@@ -126,6 +128,38 @@ def resolve_weasyprint() -> str | None:
     if venv_wp.is_file() and os.access(venv_wp, os.X_OK):
         return str(venv_wp)
     return shutil.which("weasyprint")
+
+
+def weasyprint_python(weasy: str) -> Path:
+    """Interpreter that can import the WeasyPrint behind the chosen script.
+
+    The venv script pairs with the venv interpreter. A script found on PATH
+    names its own interpreter on its #! line.
+    """
+    weasy_path = Path(weasy)
+    venv_python = ENGINE_DIR / ".venv" / "bin" / "python"
+    if weasy_path == ENGINE_DIR / ".venv" / "bin" / "weasyprint" and venv_python.is_file():
+        return venv_python
+    try:
+        with weasy_path.open("rb") as handle:
+            first = handle.readline(512).decode("utf-8", "replace")
+    except OSError:
+        first = ""
+    if first.startswith("#!"):
+        try:
+            words = shlex.split(first[2:])
+        except ValueError:
+            words = []
+        if words and Path(words[0]).name == "env":
+            words = [word for word in words[1:] if not word.startswith("-")]
+            found = shutil.which(words[0]) if words else None
+            words = [found] if found else []
+        if words and Path(words[0]).is_file():
+            return Path(words[0])
+    sibling = weasy_path.parent / "python"
+    if sibling.is_file():
+        return sibling
+    return Path(sys.executable)
 
 
 def _str_list(data: dict, key: str) -> list[str]:
@@ -327,33 +361,31 @@ def flags_for_builtin(variant: str) -> tuple[bool, bool]:
 
 def split_front_matter(md_text: str) -> tuple[str, str]:
     """Return (front_matter_including_delimiters_or_empty, body)."""
-    if not md_text.startswith("---"):
+    end = front_matter_end(md_text)
+    if end is None:
         return "", md_text
-    end = md_text.find("\n---", 3)
-    if end == -1:
-        return "", md_text
-    end += len("\n---")
     return md_text[:end], md_text[end:]
 
 
 def ensure_front_matter(md_text: str, keys: list[str], metadata: dict[str, str]) -> str:
     if not keys:
         return md_text
-    if md_text.startswith("---"):
-        end = md_text.find("\n---", 3)
-        if end != -1:
-            block = md_text[3:end]
-            extra = []
-            for key in keys:
-                if key.lower() not in block.lower():
-                    extra.append(f"{key}: {metadata.get(key, 'true')}")
-            if not extra:
-                return md_text
-            block = block.rstrip() + "\n" + "\n".join(extra) + "\n"
-            return "---" + block + md_text[end:]
-        return md_text
+    end = front_matter_end(md_text)
+    if end is not None:
+        opener = md_text.index("\n")
+        closer = md_text.rindex("\n", 0, end)
+        block = md_text[opener:closer]
+        extra = []
+        for key in keys:
+            if key.lower() not in block.lower():
+                extra.append(f"{key}: {metadata.get(key, 'true')}")
+        if not extra:
+            return md_text
+        block = block.rstrip() + "\n" + "\n".join(extra) + "\n"
+        return md_text[:opener] + block + md_text[closer + 1:]
+    bom = "﻿" if md_text.startswith("﻿") else ""
     lines = [f"{key}: {metadata.get(key, 'true')}" for key in keys]
-    return "---\n" + "\n".join(lines) + "\n---\n\n" + md_text
+    return bom + "---\n" + "\n".join(lines) + "\n---\n\n" + md_text[len(bom):]
 
 
 def include_applies(spec: Include, body: str) -> bool:
@@ -546,6 +578,8 @@ def plan_job(
             out = out.with_name(out.stem + variant.output_suffix + out.suffix)
     else:
         out = output if output.is_absolute() else (work / output).resolve()
+    if out.resolve() == source:
+        raise SystemExit(f"error: output would overwrite the source: {source}")
 
     if no_css:
         css_files: list[Path] = []
@@ -693,11 +727,7 @@ def render(job: Job) -> None:
         prepared = folder / "document.html"
         prepared.write_text(document, encoding="utf-8")
         if job.format == "pdf":
-            interpreter = ENGINE_DIR / ".venv" / "bin" / "python"
-            if not interpreter.is_file():
-                interpreter = Path(weasy).parent / "python"
-            if not interpreter.is_file():
-                interpreter = Path(sys.executable)
+            interpreter = weasyprint_python(weasy)
             result = folder / "document.pdf"
             cmd = [str(interpreter), str(ENGINE_DIR / "quire_pdf.py"), str(prepared), str(result)]
             if job.verbose:
@@ -770,7 +800,8 @@ def _parser(
         builtin_help = " Built-ins: " + ", ".join(sorted(profile.builtins)) + "."
     parser.add_argument(
         "target",
-        help="Path to a .md file, or a built-in name from the profile." + builtin_help,
+        nargs="+",
+        help="Paths to .md files, or built-in names from the profile." + builtin_help,
     )
     known = ""
     if user_config and user_config.profiles:
@@ -898,11 +929,15 @@ def main(
         print(f"{prog} {__version__}")
         return
     # build.py pins a profile and does not grow these subcommands.
-    if default_profile is None and args_in[:1] in (["install"], ["configs"]):
+    if default_profile is None and args_in[:1] in (["install"], ["configs"], ["default"], ["remove"]):
         import install as quire_install
 
         if args_in[0] == "install":
             quire_install.cmd_install(args_in[1:])
+        elif args_in[0] == "default":
+            quire_install.cmd_default(args_in[1:])
+        elif args_in[0] == "remove":
+            quire_install.cmd_remove(args_in[1:])
         else:
             quire_install.cmd_configs(args_in[1:])
         return
@@ -936,21 +971,35 @@ def main(
     if chosen != profile_path:
         profile = load_profile(chosen) if chosen is not None else None
 
-    job = plan_job(
-        args.target,
-        profile=profile,
-        letterhead=args.letterhead,
-        confidential=args.confidential,
-        output=args.output,
-        resource_path=args.resource_path,
-        css=args.css,
-        no_css=args.no_css,
-        include_before=args.include_before,
-        format=args.format,
-        no_mermaid=args.no_mermaid,
-        verbose=args.verbose,
-    )
-    render(job)
+    if args.output is not None and len(args.target) > 1:
+        raise SystemExit("error: --output needs a single target")
+    # Plan every target first so a bad one fails before any output is written.
+    jobs = [
+        plan_job(
+            target,
+            profile=profile,
+            letterhead=args.letterhead,
+            confidential=args.confidential,
+            output=args.output,
+            resource_path=args.resource_path,
+            css=args.css,
+            no_css=args.no_css,
+            include_before=args.include_before,
+            format=args.format,
+            no_mermaid=args.no_mermaid,
+            verbose=args.verbose,
+        )
+        for target in args.target
+    ]
+    sources: dict[Path, Path] = {}
+    for job in jobs:
+        if job.output in sources:
+            raise SystemExit(
+                f"error: {sources[job.output]} and {job.source} would both write {job.output}"
+            )
+        sources[job.output] = job.source
+    for job in jobs:
+        render(job)
 
 
 if __name__ == "__main__":

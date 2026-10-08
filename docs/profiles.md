@@ -10,6 +10,8 @@ quire install /path/to/acme --name acme
 quire --config acme notes.md
 acme-pdf notes.md --letterhead
 quire configs
+quire default acme
+quire remove acme
 ```
 
 Omit `--name` to use the directory name. Names start with an ASCII letter and
@@ -19,9 +21,17 @@ Registration defaults to the existing `quire` executable's resolved directory,
 or `~/.local/bin` when none is found. Use `--bin-dir` to override it.
 Re-register after moving a profile or the Quire checkout.
 
+`quire remove NAME` deletes the name from the config and deletes its
+`NAME-pdf` shortcut when the file is exactly what Quire wrote; any other
+file with that name is left in place with a warning. It never touches the
+profile directory. Removing the current default is refused; run
+`quire default --clear` or choose another default first.
+
 The user config is `$XDG_CONFIG_HOME/quire/config.toml`, or
 `~/.config/quire/config.toml` when that variable is unset. To choose a default,
-edit its top-level `default` value:
+run `quire default acme`; `quire default --clear` returns to plain output.
+The command accepts only registered names and sets the top-level `default`
+value, leaving other lines alone:
 
 ```toml
 default = "acme" # Use "" for no default profile
@@ -32,9 +42,10 @@ acme = "/absolute/path/to/acme"
 
 Registration and re-registration preserve `default` and other profiles.
 Invalid configuration or formatting that cannot be updated safely produces an
-error and leaves the configuration file unchanged.
-`quire install` and `quire configs` accept `--config-dir`; PDF builds use the
-standard location above. Use `XDG_CONFIG_HOME` to relocate it for all commands.
+error and leaves the configuration file unchanged. `quire install`,
+`quire configs`, `quire default`, and `quire remove` accept `--config-dir`;
+PDF builds use the standard location above. Use `XDG_CONFIG_HOME` to relocate
+it for all commands.
 
 Selection order, first match:
 
@@ -48,6 +59,11 @@ Selection order, first match:
 
 Unknown names and missing profiles produce errors. `--no-config` overrides
 environment variables and the default, but an explicit `--profile` wins.
+
+The words `install`, `configs`, `default`, and `remove` as the first argument
+run those subcommands. To build a built-in with one of those names, put an
+option first, as in `quire --config acme default`; the `acme-pdf` shortcut
+already does.
 
 ## Create a minimal profile
 

@@ -97,6 +97,30 @@ class RenderTests(unittest.TestCase):
         self.assertEqual(errors.getvalue(), "")
         self.assertIn("Content-Security-Policy", job.output.read_text())
 
+    def test_worker_interpreter_matches_weasyprint(self):
+        bin_dir = self.root / "bin"
+        bin_dir.mkdir()
+        python = bin_dir / "python3.12"
+        python.write_text("", encoding="utf-8")
+        script = bin_dir / "weasyprint"
+        engine = self.root / "engine"
+        venv_bin = engine / ".venv" / "bin"
+        venv_bin.mkdir(parents=True)
+        (venv_bin / "python").write_text("", encoding="utf-8")
+        with patch("quire.ENGINE_DIR", engine):
+            # A PATH script names its interpreter, even when a venv exists.
+            script.write_text(f"#!{python}\nimport weasyprint\n", encoding="utf-8")
+            self.assertEqual(quire.weasyprint_python(str(script)), python)
+            script.write_text("#!/usr/bin/env -S python3.12 -u\n", encoding="utf-8")
+            with patch("quire.shutil.which", return_value=str(python)):
+                self.assertEqual(quire.weasyprint_python(str(script)), python)
+            self.assertEqual(quire.weasyprint_python(str(venv_bin / "weasyprint")), venv_bin / "python")
+            # Without a usable #! line, keep the sibling and current-interpreter fallbacks.
+            script.write_text("#!/missing/python\n", encoding="utf-8")
+            self.assertEqual(quire.weasyprint_python(str(script)), Path(quire.sys.executable))
+            (bin_dir / "python").write_text("", encoding="utf-8")
+            self.assertEqual(quire.weasyprint_python(str(script)), bin_dir / "python")
+
     def test_failure_preserves_output_and_verbose_uses_stderr(self):
         job = self.job(format="html", verbose=True)
         job.output.write_text("previous output", encoding="utf-8")

@@ -20,16 +20,23 @@ NORMALIZATION_VERSION = 3
 SVG_NS = "http://www.w3.org/2000/svg"
 
 
-def front_matter_is_closed(text: str) -> bool:
-    """A leading --- is front matter only when a closing delimiter follows.
+def front_matter_end(text: str) -> int | None:
+    """End of a leading YAML block's closing line, or None when there is none.
 
-    Pandoc otherwise treats it as a thematic break, so the rest of the buffer
-    is still body. An unclosed opener must be scanned for fences.
+    As in Pandoc, the opener is a --- line (after an optional byte order mark)
+    not followed by a blank line, and the block closes at the next --- or ...
+    line. Pandoc otherwise treats the opener as a thematic break, so the rest
+    of the buffer is still body.
     """
-    beginning = text.lstrip("\ufeff")
-    if not (beginning.startswith("---\n") or beginning.startswith("---\r\n")):
-        return False
-    return any(line.strip() in {"---", "..."} for line in beginning.splitlines()[1:])
+    lines = text.split("\n")
+    if lines[0].lstrip("\ufeff").rstrip() != "---" or len(lines) < 2 or not lines[1].strip():
+        return None
+    offset = len(lines[0])
+    for line in lines[1:]:
+        offset += 1 + len(line)
+        if line.rstrip() in {"---", "..."}:
+            return offset
+    return None
 
 
 def fence_locations(text: str) -> list[tuple[str, int]]:
@@ -39,11 +46,10 @@ def fence_locations(text: str) -> list[tuple[str, int]]:
     body = []
     start = indent = 0
     mermaid = False
-    front_matter = front_matter_is_closed(text)
+    end = front_matter_end(text)
+    front_matter_lines = 0 if end is None else text.count("\n", 0, end) + 1
     for number, original in enumerate(text.splitlines(), 1):
-        if front_matter:
-            if number > 1 and original.strip() in {"---", "..."}:
-                front_matter = False
+        if number <= front_matter_lines:
             continue
         line = re.sub(r"^(?: {0,3}> ?)+", "", original)
         if fence is None:
