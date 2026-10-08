@@ -1,0 +1,41 @@
+{
+  "id": "s02",
+  "title": "Pick the WeasyPrint worker interpreter correctly",
+  "lead": [
+    "The PDF worker can run under a Python that cannot import WeasyPrint."
+  ],
+  "depends_note": null,
+  "findings_note": "G2",
+  "size": "M",
+  "flags": [],
+  "trees_note": "core",
+  "trees_plural": false,
+  "boundary": "**Not in this slice:**",
+  "sections": [
+    {
+      "heading": "Why",
+      "body": "`render()` chooses `.venv/bin/python`, then `<weasyprint dir>/python`, then\n`sys.executable` (`quire.py:696-700`), independent of which `weasyprint`\n`resolve_weasyprint()` found (`quire.py:124-128`). With a Homebrew or pipx\nWeasyPrint there is usually no sibling `python`. A `.venv` without WeasyPrint\nplus a PATH WeasyPrint pairs the wrong interpreter. The README promises PATH\nsupport."
+    },
+    {
+      "heading": "Files",
+      "body": "- `quire.py` (new helper next to `resolve_weasyprint`; `render`)\n- `test_quire.py`\n- `CHANGELOG.md`"
+    },
+    {
+      "heading": "Failing tests",
+      "body": "- A fake PATH `weasyprint` whose shebang names interpreter X, with a venv that\n  has no WeasyPrint: the helper returns X.\n- A venv `weasyprint`: the helper returns the venv python."
+    },
+    {
+      "heading": "Implement",
+      "body": "Reproduce first. Then add a helper that returns the interpreter matching the\nchosen `weasyprint`: the venv python when it is the venv script; otherwise the\nscript's `#!` interpreter when it names an existing file (handle a\n`/usr/bin/env python3` form by resolving through PATH); otherwise the current\nfallbacks. Use the helper in `render`."
+    },
+    {
+      "heading": "Check",
+      "body": "- `python3 test_quire.py`\n- Real PDF build with the venv runtime, if available."
+    },
+    {
+      "heading": "Git",
+      "body": "No commit unless the owner asks."
+    }
+  ],
+  "notes": []
+}

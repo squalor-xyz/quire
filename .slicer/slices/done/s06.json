@@ -1,0 +1,41 @@
+{
+  "id": "s06",
+  "title": "Add quire remove to unregister a profile",
+  "lead": [
+    "There is no CLI to unregister a profile or remove its shortcut."
+  ],
+  "depends_note": null,
+  "findings_note": "G3",
+  "size": "M",
+  "flags": [],
+  "trees_note": "install",
+  "trees_plural": false,
+  "boundary": "**Not in this slice:**",
+  "sections": [
+    {
+      "heading": "Why",
+      "body": "Removing a profile today means editing config.toml and deleting `NAME-pdf` by hand."
+    },
+    {
+      "heading": "Files",
+      "body": "- `install.py` (`remove_profile`, `cmd_remove`)\n- `quire.py` (`main` subcommand dispatch)\n- `test_quire.py`\n- `README.md`, `docs/profiles.md`, `CHANGELOG.md`"
+    },
+    {
+      "heading": "Failing tests",
+      "body": "- Removing a registered name drops it from `[profiles]` and deletes the matching `NAME-pdf`.\n- Removing the current default errors and suggests `quire default --clear`.\n- A `NAME-pdf` whose content differs from `launcher_text` is kept, with a warning."
+    },
+    {
+      "heading": "Implement",
+      "body": "Use the same safe TOML-edit pattern as `set_default`. Delete the shortcut only\nwhen its content equals what `launcher_text` would generate for that name.\nNever delete the profile directory. Accept `--config-dir` and `--bin-dir`."
+    },
+    {
+      "heading": "Check",
+      "body": "- `python3 test_quire.py`\n- Manual run with scratch config and bin directories."
+    },
+    {
+      "heading": "Git",
+      "body": "No commit unless the owner asks."
+    }
+  ],
+  "notes": []
+}

@@ -1,0 +1,213 @@
+{
+  "version": 7,
+  "id_prefix": "s",
+  "id_width": 2,
+  "next_id": 8,
+  "preamble": "",
+  "passes": [],
+  "items": [
+    {
+      "id": "s01",
+      "title": "Guard against overwriting the source",
+      "short_title": "Guard against overwriting the source",
+      "status": "done",
+      "has_slice": true,
+      "depends_on": [],
+      "note_records": [],
+      "claim": null,
+      "fields": {
+        "size": "S",
+        "flags": [],
+        "trees": [
+          "core"
+        ],
+        "trees_literal": false,
+        "findings": "G1",
+        "discovered_from": "",
+        "key": "",
+        "pass": "",
+        "group": "",
+        "reason": "",
+        "importance": 3,
+        "urgency": 3,
+        "effort": 1,
+        "attempts": 1
+      }
+    },
+    {
+      "id": "s02",
+      "title": "Pick the WeasyPrint worker interpreter correctly",
+      "short_title": "Pick the WeasyPrint worker interpreter correctly",
+      "status": "done",
+      "has_slice": true,
+      "depends_on": [],
+      "note_records": [],
+      "claim": null,
+      "fields": {
+        "size": "M",
+        "flags": [],
+        "trees": [
+          "core"
+        ],
+        "trees_literal": false,
+        "findings": "G2",
+        "discovered_from": "",
+        "key": "",
+        "pass": "",
+        "group": "",
+        "reason": "",
+        "importance": 3,
+        "urgency": 2,
+        "effort": 2,
+        "attempts": 1
+      }
+    },
+    {
+      "id": "s03",
+      "title": "Reject install.py --python without --skip-venv",
+      "short_title": "Reject install.py --python without --skip-venv",
+      "status": "done",
+      "has_slice": true,
+      "depends_on": [],
+      "note_records": [],
+      "claim": null,
+      "fields": {
+        "size": "S",
+        "flags": [],
+        "trees": [
+          "install"
+        ],
+        "trees_literal": false,
+        "findings": "G2",
+        "discovered_from": "",
+        "key": "",
+        "pass": "",
+        "group": "",
+        "reason": "",
+        "importance": 2,
+        "urgency": 1,
+        "effort": 1,
+        "attempts": 1
+      }
+    },
+    {
+      "id": "s04",
+      "title": "Detect YAML front matter like Pandoc",
+      "short_title": "Detect YAML front matter like Pandoc",
+      "status": "done",
+      "has_slice": true,
+      "depends_on": [],
+      "note_records": [],
+      "claim": null,
+      "fields": {
+        "size": "M",
+        "flags": [],
+        "trees": [
+          "core"
+        ],
+        "trees_literal": false,
+        "findings": "G1",
+        "discovered_from": "",
+        "key": "",
+        "pass": "",
+        "group": "",
+        "reason": "",
+        "importance": 2,
+        "urgency": 1,
+        "effort": 2,
+        "attempts": 1
+      }
+    },
+    {
+      "id": "s05",
+      "title": "Add quire default to set or clear the default profile",
+      "short_title": "Add quire default to set or clear the default profile",
+      "status": "done",
+      "has_slice": true,
+      "depends_on": [],
+      "note_records": [],
+      "claim": null,
+      "fields": {
+        "size": "M",
+        "flags": [],
+        "trees": [
+          "install"
+        ],
+        "trees_literal": false,
+        "findings": "G3",
+        "discovered_from": "",
+        "key": "",
+        "pass": "",
+        "group": "",
+        "reason": "",
+        "importance": 2,
+        "urgency": 2,
+        "effort": 2,
+        "attempts": 1
+      }
+    },
+    {
+      "id": "s06",
+      "title": "Add quire remove to unregister a profile",
+      "short_title": "Add quire remove to unregister a profile",
+      "status": "done",
+      "has_slice": true,
+      "depends_on": [
+        "s05"
+      ],
+      "note_records": [],
+      "claim": null,
+      "fields": {
+        "size": "M",
+        "flags": [],
+        "trees": [
+          "install"
+        ],
+        "trees_literal": false,
+        "findings": "G3",
+        "discovered_from": "",
+        "key": "",
+        "pass": "",
+        "group": "",
+        "reason": "",
+        "importance": 2,
+        "urgency": 1,
+        "effort": 2,
+        "attempts": 1
+      }
+    },
+    {
+      "id": "s07",
+      "title": "Build several documents in one call",
+      "short_title": "Build several documents in one call",
+      "status": "done",
+      "has_slice": true,
+      "depends_on": [
+        "s01"
+      ],
+      "note_records": [],
+      "claim": null,
+      "fields": {
+        "size": "M",
+        "flags": [],
+        "trees": [
+          "core"
+        ],
+        "trees_literal": false,
+        "findings": "G4",
+        "discovered_from": "",
+        "key": "",
+        "pass": "",
+        "group": "",
+        "reason": "",
+        "importance": 2,
+        "urgency": 1,
+        "effort": 2,
+        "attempts": 1
+      }
+    }
+  ],
+  "epilogue": "",
+  "goals": "- G1 Safe builds: a build never destroys input, and a failed build leaves the existing output intact.\n- G2 Reliable runtime: PDF builds work with the venv or a PATH WeasyPrint, and installer flags do what they say.\n- G3 Profile management from the CLI: setting a default or removing a profile needs no hand-editing of config.toml.\n- G4 Batch builds: build several documents in one call.",
+  "non_goals": "- Windows support, Pandoc option passthrough, and watch mode are out of scope for this roadmap."
+}

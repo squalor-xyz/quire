@@ -1,0 +1,41 @@
+{
+  "id": "s03",
+  "title": "Reject install.py --python without --skip-venv",
+  "lead": [
+    "`python3 install.py --python X` silently ignores X."
+  ],
+  "depends_note": null,
+  "findings_note": "G2",
+  "size": "S",
+  "flags": [],
+  "trees_note": "install",
+  "trees_plural": false,
+  "boundary": "**Not in this slice:**",
+  "sections": [
+    {
+      "heading": "Why",
+      "body": "`install()` calls `ensure_venv(None)` whenever runtime setup is enabled, so\n`--python` only takes effect with `--skip-venv`."
+    },
+    {
+      "heading": "Files",
+      "body": "- `install.py` (`main`)\n- `test_quire.py`\n- `CHANGELOG.md`"
+    },
+    {
+      "heading": "Failing tests",
+      "body": "- `install.main([\"--python\", \"x\"])` raises `SystemExit` before writing anything."
+    },
+    {
+      "heading": "Implement",
+      "body": "In `install.main`, raise `SystemExit(\"error: --python requires --skip-venv\")`,\nmatching the existing `--name requires --profile` check."
+    },
+    {
+      "heading": "Check",
+      "body": "- `python3 test_quire.py`"
+    },
+    {
+      "heading": "Git",
+      "body": "No commit unless the owner asks."
+    }
+  ],
+  "notes": []
+}

@@ -1,0 +1,41 @@
+{
+  "id": "s04",
+  "title": "Detect YAML front matter like Pandoc",
+  "lead": [
+    "`split_front_matter` treats any leading `---` plus a later `\\n---` as YAML."
+  ],
+  "depends_note": null,
+  "findings_note": "G1",
+  "size": "M",
+  "flags": [],
+  "trees_note": "core",
+  "trees_plural": false,
+  "boundary": "**Not in this slice:**",
+  "sections": [
+    {
+      "heading": "Why",
+      "body": "`quire.py:328-356` ignores the `...` closer and a BOM, and it matches `----`\nlines. A document that opens with a thematic break can be split wrongly, and\n`ensure_front_matter` can inject keys into non-YAML text.\n`quire_mermaid.front_matter_is_closed` already uses a stricter rule."
+    },
+    {
+      "heading": "Files",
+      "body": "- `quire.py` (`split_front_matter`, `ensure_front_matter`)\n- `quire_mermaid.py` (share the rule, if practical)\n- `test_quire.py`\n- `CHANGELOG.md`"
+    },
+    {
+      "heading": "Failing tests",
+      "body": "- A leading thematic break followed by a later `---` rule is not front matter.\n- Front matter closed by `...` is recognized.\n- Front matter after a BOM is recognized.\n- A `----` line inside YAML does not close it."
+    },
+    {
+      "heading": "Implement",
+      "body": "Use one detector for both functions. The opener line must be exactly `---`\n(optional BOM), and the block closes at the first later line that is exactly\n`---` or `...`. Reuse the mermaid rule rather than adding a third variant."
+    },
+    {
+      "heading": "Check",
+      "body": "- `python3 test_quire.py`"
+    },
+    {
+      "heading": "Git",
+      "body": "No commit unless the owner asks."
+    }
+  ],
+  "notes": []
+}

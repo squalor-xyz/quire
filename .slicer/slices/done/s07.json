@@ -1,0 +1,41 @@
+{
+  "id": "s07",
+  "title": "Build several documents in one call",
+  "lead": [
+    "`quire` accepts one target per invocation."
+  ],
+  "depends_note": null,
+  "findings_note": "G4",
+  "size": "M",
+  "flags": [],
+  "trees_note": "core",
+  "trees_plural": false,
+  "boundary": "**Not in this slice:**",
+  "sections": [
+    {
+      "heading": "Why",
+      "body": "Batch builds need a shell loop, and each run reloads the config and profile."
+    },
+    {
+      "heading": "Files",
+      "body": "- `quire.py` (`_parser`, `main`)\n- `test_quire.py`\n- `README.md`, `CHANGELOG.md`"
+    },
+    {
+      "heading": "Failing tests",
+      "body": "- Two targets plan two jobs and render both.\n- `-o` with more than one target errors before anything renders.\n- Two targets that resolve to the same output error before anything renders."
+    },
+    {
+      "heading": "Implement",
+      "body": "Change `target` to `nargs=\"+\"`. Plan every job first, then render in order and\nstop at the first failure with a nonzero exit. Keep `plan_job` and `render`\nsingle-job; the loop lives in `main`. Each success prints `wrote <path>`."
+    },
+    {
+      "heading": "Check",
+      "body": "- `python3 test_quire.py`\n- Real build with two inputs, if the runtime is available."
+    },
+    {
+      "heading": "Git",
+      "body": "No commit unless the owner asks."
+    }
+  ],
+  "notes": []
+}

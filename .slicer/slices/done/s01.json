@@ -1,0 +1,41 @@
+{
+  "id": "s01",
+  "title": "Guard against overwriting the source",
+  "lead": [
+    "`quire notes.md -o notes.md` writes a PDF over the Markdown source."
+  ],
+  "depends_note": null,
+  "findings_note": "G1",
+  "size": "S",
+  "flags": [],
+  "trees_note": "core",
+  "trees_plural": false,
+  "boundary": "**Not in this slice:**",
+  "sections": [
+    {
+      "heading": "Why",
+      "body": "A `.md` output extension falls back to PDF format (`quire.py:525-528`) and\n`render()` calls `os.replace` onto the output (`quire.py:708`). No check\ncompares the output to the source, so the input is lost."
+    },
+    {
+      "heading": "Files",
+      "body": "- `quire.py` (`plan_job`)\n- `test_quire.py`\n- `CHANGELOG.md`"
+    },
+    {
+      "heading": "Failing tests",
+      "body": "- `plan_job(\"notes.md\", output=Path(\"notes.md\"))` should raise `SystemExit`."
+    },
+    {
+      "heading": "Implement",
+      "body": "After `out` is computed in `plan_job`, raise\n`SystemExit(\"error: output would overwrite the source: <path>\")` when\n`out.resolve() == source.resolve()`."
+    },
+    {
+      "heading": "Check",
+      "body": "- `python3 test_quire.py`\n- Real build check: `-o` set to the source path fails, and the source is unchanged."
+    },
+    {
+      "heading": "Git",
+      "body": "No commit unless the owner asks."
+    }
+  ],
+  "notes": []
+}

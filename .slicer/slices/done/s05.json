@@ -1,0 +1,41 @@
+{
+  "id": "s05",
+  "title": "Add quire default to set or clear the default profile",
+  "lead": [
+    "There is no CLI to choose the default profile; the docs say to edit config.toml by hand."
+  ],
+  "depends_note": null,
+  "findings_note": "G3",
+  "size": "M",
+  "flags": [],
+  "trees_note": "install",
+  "trees_plural": false,
+  "boundary": "**Not in this slice:**",
+  "sections": [
+    {
+      "heading": "Why",
+      "body": "Registration deliberately leaves `default` unchanged, so choosing a default\nalways means hand-editing TOML."
+    },
+    {
+      "heading": "Files",
+      "body": "- `install.py` (`set_default`, `cmd_default`)\n- `quire.py` (`main` subcommand dispatch)\n- `test_quire.py`\n- `README.md`, `docs/profiles.md`, `CHANGELOG.md`"
+    },
+    {
+      "heading": "Failing tests",
+      "body": "- `quire default acme` sets `default = \"acme\"` and keeps the profiles and comments.\n- `quire default --clear` sets `default = \"\"`.\n- An unknown name errors, and the file is unchanged."
+    },
+    {
+      "heading": "Implement",
+      "body": "Add `set_default(text, name)` in the style of `upsert_profile`. It edits the\ntop-level `default =` line or inserts one before the first table, re-parses\nwith `tomllib`, compares against the expected dict, and leaves the file\nunchanged on mismatch. Add `cmd_default` with `--config-dir` and `--clear`, and\ndispatch `default` in `quire.main` next to `install`/`configs`. Document that\nthe subcommand shadows a built-in named `default`."
+    },
+    {
+      "heading": "Check",
+      "body": "- `python3 test_quire.py`\n- Manual run with `--config-dir` in a scratch directory; never the real config."
+    },
+    {
+      "heading": "Git",
+      "body": "No commit unless the owner asks."
+    }
+  ],
+  "notes": []
+}
