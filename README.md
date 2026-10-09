@@ -1,5 +1,7 @@
 # Quire
 
+<img src="assets/quire-512.png" alt="quire" width="128" />
+
 Turn Markdown into PDF or standalone HTML with Pandoc and WeasyPrint. Quire provides a plain
 stylesheet and supports separate profiles for custom styling and reusable content.
 Mermaid diagrams render to inline SVG at build time when the optional renderer
