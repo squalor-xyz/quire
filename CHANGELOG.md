@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.1.1
+
+- Name the config when its registered profile directory no longer has a `profile.toml`, and suggest `quire install <profile dir> --name NAME` to re-register it. Previously the error showed only the missing path.
+
 ## 1.1.0
 
 - Refuse to build when the output path is the source file. Previously `quire notes.md -o notes.md` replaced the Markdown with the PDF.
