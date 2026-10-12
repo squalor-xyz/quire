@@ -651,6 +651,21 @@ class NamedConfigTests(unittest.TestCase):
             self.assertEqual(path.read_text(encoding="utf-8"), before)
             self.assertTrue((bin_dir / "acme-pdf").exists())
 
+    def test_missing_registered_profile_names_the_config(self) -> None:
+        with temporary_directory() as tmp:
+            root = Path(tmp)
+            config_dir = root / "cfg"
+            common = ["--bin-dir", str(root / "bin"), "--config-dir", str(config_dir)]
+            profile = self._profile(root, "acme")
+            with redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()):
+                quire.main(["install", str(profile), *common])
+            (profile / "profile.toml").unlink()
+            cfg = quire.load_user_config(config_dir / "config.toml")
+            with self.assertRaisesRegex(SystemExit, r"config 'acme' points to .*quire install"):
+                quire.main(["--config", "acme", "x.md"], user_config=cfg)
+            with self.assertRaisesRegex(SystemExit, "profile not found"):
+                quire.main(["--profile", str(profile), "x.md"], user_config=cfg)
+
     def test_rename_updates_path_and_keeps_default(self) -> None:
         with temporary_directory() as tmp:
             root = Path(tmp)

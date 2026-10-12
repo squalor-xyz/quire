@@ -788,6 +788,23 @@ def profile_from_name(cfg: UserConfig, name: str) -> Path:
     return cfg.profiles[name]
 
 
+def _check_config_profile(path: Path, cfg: UserConfig | None) -> None:
+    """Name the config when its registered profile has gone missing."""
+    if cfg is None:
+        return
+    names = sorted(name for name, registered in cfg.profiles.items() if registered == path)
+    if not names:
+        return
+    resolved = path.expanduser()
+    toml_path = resolved if resolved.is_file() else resolved / "profile.toml"
+    if toml_path.is_file():
+        return
+    raise SystemExit(
+        f"error: config {names[0]!r} points to {path}, which has no profile.toml; "
+        f"re-register with: quire install <profile dir> --name {names[0]}"
+    )
+
+
 def _parser(
     profile: Profile | None,
     description: str,
@@ -957,6 +974,8 @@ def main(
         no_config=known.no_config,
         user_config=cfg,
     )
+    if profile_path is not None and known.profile is None:
+        _check_config_profile(profile_path, cfg)
     profile = load_profile(profile_path) if profile_path is not None else None
 
     args = _parser(profile, description, prog, cfg).parse_args(args_in)
@@ -969,6 +988,8 @@ def main(
         user_config=cfg,
     )
     if chosen != profile_path:
+        if chosen is not None and args.profile is None:
+            _check_config_profile(chosen, cfg)
         profile = load_profile(chosen) if chosen is not None else None
 
     if args.output is not None and len(args.target) > 1:
