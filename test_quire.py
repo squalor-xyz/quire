@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import io
 import os
+import re
 import stat
 import tempfile
 import tomllib
@@ -944,6 +945,93 @@ class MultipleTargetTests(unittest.TestCase):
                     quire.main([*argv, "--no-config"],
                                user_config=quire.UserConfig(default="", profiles={}))
                 render.assert_not_called()
+
+    FENCE = "```mermaid\nflowchart LR\n A-->B\n```\n"
+
+    def mermaid_build(self, *argv: str) -> list:
+        """Build with the renderer hidden; return the written outputs."""
+        written = []
+
+        def fake_render(job: quire.Job) -> None:
+            job.output.write_text("out", encoding="utf-8")
+            written.append(job.output)
+
+        with patch("quire.render", side_effect=fake_render), \
+                patch("quire_mermaid.shutil.which", return_value=None):
+            quire.main([*argv, "--no-config", "--format", "html"],
+                       user_config=quire.UserConfig(default="", profiles={}))
+        return written
+
+    def mermaid_targets(self) -> list[str]:
+        (self.root / "two.md").write_text("Hi\n\n" + self.FENCE, encoding="utf-8")
+        return [str(self.root / "one.md"), str(self.root / "two.md")]
+
+    def test_missing_mermaid_renderer_fails_before_any_render(self) -> None:
+        with self.assertRaises(SystemExit) as caught:
+            self.mermaid_build(*self.mermaid_targets())
+        self.assertFalse(list(self.root.glob("*.html")))
+        message = str(caught.exception)
+        self.assertIn(f"{self.root / 'two.md'}: line 3: Mermaid tooling missing", message)
+        self.assertIn("python3 install.py --with-mermaid", message)
+        self.assertIn("--no-mermaid", message)
+
+    def test_mermaid_check_names_the_fence_source(self) -> None:
+        fragment = self.root / "frag.md"
+        fragment.write_text("Intro\n\n" + self.FENCE, encoding="utf-8")
+        front = "---\ntitle: T\n---\n\n" + self.FENCE
+        for name, body, extra, expected in (
+            ("fragment", "Hello\n", ["--include-before", str(fragment)], f"{fragment}: line 3:"),
+            ("front matter", front, [], "two.md: line 5:"),
+        ):
+            with self.subTest(name):
+                (self.root / "two.md").write_text(body, encoding="utf-8")
+                with self.assertRaisesRegex(SystemExit, re.escape(expected)):
+                    self.mermaid_build(str(self.root / "one.md"), str(self.root / "two.md"), *extra)
+                self.assertFalse(list(self.root.glob("*.html")))
+
+    def test_mermaid_check_is_skipped_without_need(self) -> None:
+        with patch("quire_mermaid.shutil.which", side_effect=AssertionError("checked")):
+            jobs = self.build(*self.mermaid_targets(), "--format", "html", "--no-mermaid")
+            self.assertEqual(len(jobs), 2)
+            (self.root / "two.md").write_text("Hello\n", encoding="utf-8")
+            both = [str(self.root / "one.md"), str(self.root / "two.md")]
+            self.assertEqual(len(self.build(*both)), 2)
+
+    def test_mermaid_check_ignores_inapplicable_includes(self) -> None:
+        profile = self.root / "profile"
+        profile.mkdir()
+        (profile / "style.css").write_text("body {}", encoding="utf-8")
+        (profile / "diagram.md").write_text(self.FENCE, encoding="utf-8")
+        (profile / "profile.toml").write_text(
+            '[variants.default]\ncss = ["style.css"]\n[[variants.default.includes]]\n'
+            'file = "diagram.md"\nskip_if_body_contains = ["no-diagram"]\n', encoding="utf-8")
+        target = self.root / "one.md"
+        argv = [str(target), "--profile", str(profile)]
+        target.write_text("no-diagram\n", encoding="utf-8")
+        self.assertEqual(len(self.mermaid_build(*argv)), 1)
+        target.write_text("Hello\n", encoding="utf-8")
+        with self.assertRaisesRegex(SystemExit, "diagram.md: line 1: Mermaid tooling missing"):
+            self.mermaid_build(*argv)
+
+    def test_mermaid_check_ignores_indented_code(self) -> None:
+        indented = "Text\n\n    " + self.FENCE.replace("\n", "\n    ", 3).rstrip(" ")
+        target = self.root / "one.md"
+        target.write_text(indented, encoding="utf-8")
+        self.assertEqual(len(self.mermaid_build(str(target))), 1)
+        fence = self.FENCE
+        for name, body in (
+            ("list", "1. Item\n\n    " + fence),
+            ("definition list", "Term\n:   Definition\n\n    " + fence),
+            ("letter marker", "a.  Item\n\n    " + fence),
+            ("parenthesis marker", "(1) Item\n\n    " + fence),
+            ("example marker", "(@) Item\n\n    " + fence),
+            ("footnote", "Text[^1]\n\n[^1]: Note\n\n    " + fence),
+            ("tab after quote", ">\t" + fence),
+        ):
+            with self.subTest(name):
+                target.write_text(body, encoding="utf-8")
+                with self.assertRaisesRegex(SystemExit, "one.md: line \\d: Mermaid tooling"):
+                    self.mermaid_build(str(target))
 
 
 class VersionTests(unittest.TestCase):

@@ -40,7 +40,11 @@ packages live in `node_modules/`. This optional setup downloads a substantial
 browser runtime. Ordinary installation does not require Node or download it.
 Builds never install tooling automatically. A document containing Mermaid blocks
 fails with an installation hint if the renderer is missing; documents without
-diagrams still work. `--no-mermaid` keeps diagrams as code instead.
+diagrams still work. The check runs before any target builds, so one diagram
+anywhere in a batch stops the whole call and nothing is written. It reads the
+source text, so a Mermaid-looking fence that Pandoc does not treat as code (for
+example inside an HTML comment) can still trigger the hint. `--no-mermaid`
+keeps diagrams as code instead and gets past it.
 
 HTML-only use requires Python and Pandoc, without WeasyPrint or its native libraries:
 

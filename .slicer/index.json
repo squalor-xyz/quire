@@ -434,10 +434,22 @@
       "id": "s15",
       "title": "Check for the Mermaid renderer before building starts",
       "short_title": "Check for the Mermaid renderer before building starts",
-      "status": "open",
+      "status": "done",
       "has_slice": true,
       "depends_on": [],
-      "note_records": [],
+      "note_records": [
+        {
+          "id": "9bea842a-3e10-4b1a-8bca-8a652ba0ac51",
+          "kind": "",
+          "text": "**2026-10-14** — Mermaid renderer is checked after planning and before any render: a fence in any job's Markdown or applicable includes with the renderer missing fails the call with the install hint naming file and line, and nothing is written. Skips --no-mermaid, inapplicable includes, and top-level indented code. 80 tests green; gate PASS; real PDF run checked (missing renderer: rc=1, no PDFs; --no-mermaid: both PDFs). Known low gaps: indented fences under ~ definition lists, containers inside blockquotes, '> <tab>' fences and indented footnote labels are treated as indented code, so they fall back to the render-time error.",
+          "created_at": "2026-10-14T17:31:03Z",
+          "attempt": 1,
+          "by": "Jon Robbins",
+          "verified_by": "",
+          "verified_at": "",
+          "stale_after": ""
+        }
+      ],
       "claim": null,
       "fields": {
         "size": "S",
@@ -456,7 +468,7 @@
         "importance": 2,
         "urgency": 2,
         "effort": 1,
-        "attempts": 0
+        "attempts": 1
       }
     },
     {

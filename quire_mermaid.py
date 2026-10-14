@@ -17,6 +17,7 @@ from pathlib import Path
 from xml.etree import ElementTree as ET
 
 NORMALIZATION_VERSION = 3
+ENGINE_DIR = Path(__file__).resolve().parent
 SVG_NS = "http://www.w3.org/2000/svg"
 
 
@@ -193,6 +194,20 @@ def prefix_svg(text: str, prefix: str) -> str:
     return ET.tostring(root, encoding="unicode")
 
 
+def renderer_available(engine: Path = ENGINE_DIR) -> bool:
+    manifest = engine / "node_modules/@mermaid-js/mermaid-cli/package.json"
+    return bool(shutil.which("node")) and manifest.is_file()
+
+
+def require_renderer(engine: Path = ENGINE_DIR) -> None:
+    if not renderer_available(engine):
+        raise SystemExit(
+            "Mermaid tooling missing. Install Node >=22.13 and npm, then run:\n"
+            "  python3 install.py --with-mermaid\n"
+            "Or use --no-mermaid to keep diagrams as source text."
+        )
+
+
 class MermaidRenderer:
     def __init__(self, engine: Path, config: dict, font_css: str, verbose: bool,
                  cache: Path | None = None):
@@ -203,12 +218,7 @@ class MermaidRenderer:
         self.cache = cache if cache is not None else cache_directory()
         self.node = shutil.which("node")
         self.worker = engine / "mermaid-render.mjs"
-        if not self.node or not (engine / "node_modules/@mermaid-js/mermaid-cli/package.json").is_file():
-            raise SystemExit(
-                "Mermaid tooling missing. Install Node >=22.13 and npm, then run:\n"
-                "  python3 install.py --with-mermaid\n"
-                "Or use --no-mermaid to keep diagrams as source text."
-            )
+        require_renderer(engine)
         self.env = os.environ.copy()
         self.env["PUPPETEER_CACHE_DIR"] = str(engine / ".cache" / "puppeteer")
         self.fingerprint = self._call(["--fingerprint"], None).strip()
@@ -278,7 +288,7 @@ def render_blocks(ast: dict, job, font_css: str, renderer_factory=MermaidRendere
         path, line = candidates.popleft()
         try:
             if renderer is None:
-                renderer = renderer_factory(Path(__file__).parent, job.mermaid, font_css, job.verbose)
+                renderer = renderer_factory(ENGINE_DIR, job.mermaid, font_css, job.verbose)
             svg = renderer.render(source, index)
         except (SystemExit, OSError, ValueError, subprocess.SubprocessError) as exc:
             raise SystemExit(f"error: {path}: Mermaid block {index}, line {line}: {exc}") from exc
