@@ -1,0 +1,41 @@
+{
+  "id": "s11",
+  "title": "Append stylesheets after the selected CSS",
+  "lead": [
+    "`--css` replaces the profile's stylesheet, so a one-off adjustment (font size,\nmargins) means copying the whole profile stylesheet."
+  ],
+  "depends_note": null,
+  "findings_note": "G5",
+  "size": "S",
+  "flags": [],
+  "trees_note": "core",
+  "trees_plural": false,
+  "boundary": "**Not in this slice:** `--font-size` or `--margin` convenience flags; a\nwrapper can generate the small stylesheet those would produce.",
+  "sections": [
+    {
+      "heading": "Why",
+      "body": "branded-pdf's mono script takes `--font-size` and `--margin` per build. An\nadditive stylesheet lets a wrapper or user override a few rules while keeping\nthe profile's branding and variant selection."
+    },
+    {
+      "heading": "Files",
+      "body": "- `quire.py` (`_parser`, `plan_job`)\n- `test_quire.py`\n- `README.md`, `docs/profiles.md`, `CHANGELOG.md`"
+    },
+    {
+      "heading": "Failing tests",
+      "body": "- `--add-css extra.css` appends after the variant's CSS, after `plain.css`\n  with no profile, and after `--css` stylesheets; it is repeatable and order\n  is preserved.\n- `--no-css` still passes no stylesheet, including added ones.\n- A missing added stylesheet is an error before anything is written.\n- Relative paths resolve from the working directory."
+    },
+    {
+      "heading": "Implement",
+      "body": "Add a repeatable `--add-css PATH` option. In `plan_job`, resolve and check\neach path like `--css`, then extend `css_files` after the existing selection\nunless `--no-css` is set. Document that `!important` is needed to override\nnamed-page `@page` rules from a profile."
+    },
+    {
+      "heading": "Check",
+      "body": "- `python3 test_quire.py`\n- Real build with `--config dd --add-css` setting `@page { margin: 0.5in }`;\n  report that the branding is kept and the margin changed."
+    },
+    {
+      "heading": "Git",
+      "body": "No commit unless the owner asks."
+    }
+  ],
+  "notes": []
+}

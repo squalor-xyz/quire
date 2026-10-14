@@ -1,0 +1,41 @@
+{
+  "id": "s09",
+  "title": "Fail when a profile's required font is missing",
+  "lead": [
+    "WeasyPrint substitutes a fallback font without an error when a stylesheet\nnames a font that is not installed. A build with `font-family: \"NoSuchFont\"`\nexits 0 and embeds Verdana."
+  ],
+  "depends_note": null,
+  "findings_note": "G5",
+  "size": "M",
+  "flags": [],
+  "trees_note": "core",
+  "trees_plural": false,
+  "boundary": "**Not in this slice:** checking fonts named only in `--css` stylesheets;\ninstalling fonts; parsing font stacks out of CSS.",
+  "sections": [
+    {
+      "heading": "Why",
+      "body": "branded-pdf (xelatex) fails loudly when a brand font is missing. Quire\ninstead produces a document that looks almost right in the wrong typeface,\nwhich is easy to send out unnoticed. A profile already knows which fonts it\ndepends on and can declare them."
+    },
+    {
+      "heading": "Files",
+      "body": "- `quire.py` (`load_profile`, `_load_variant`, `plan_job`)\n- `test_quire.py`\n- `docs/profiles.md`, `CHANGELOG.md`"
+    },
+    {
+      "heading": "Failing tests",
+      "body": "- `fonts = [\"A\", \"B\"]` at profile level is parsed; a variant-level `fonts`\n  list replaces it for that variant; a non-list or non-string entry is an error.\n- With a stubbed font lookup, a missing declared font fails planning with an\n  error naming the font and the profile, before anything is written.\n- When every declared font is present, planning succeeds.\n- When the lookup tool is unavailable, planning warns once on stderr and\n  continues.\n- A profile without `fonts` behaves as before."
+    },
+    {
+      "heading": "Implement",
+      "body": "Add an optional `fonts` list to `profile.toml` (profile level and per variant).\nAt plan time, check each family with `fc-list` (`fc-list : family`), which ships\nwith fontconfig, a WeasyPrint dependency; match family names case-insensitively\nagainst the comma-separated family names fontconfig reports. Keep the lookup in\none function so tests can stub it. Fail with\n`error: profile <name> needs font \"<family>\", which is not installed`.\nDocument the key and note that fonts embedded through `@font-face` need not be\nlisted."
+    },
+    {
+      "heading": "Check",
+      "body": "- `python3 test_quire.py`\n- Real build with a scratch profile that lists one installed and one\n  nonexistent font; report the error text."
+    },
+    {
+      "heading": "Git",
+      "body": "No commit unless the owner asks."
+    }
+  ],
+  "notes": []
+}

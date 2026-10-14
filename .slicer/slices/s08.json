@@ -1,0 +1,41 @@
+{
+  "id": "s08",
+  "title": "Render plain-text input verbatim",
+  "lead": [
+    "`quire` accepts only `.md` and `.markdown` targets and always parses them as\nMarkdown."
+  ],
+  "depends_note": null,
+  "findings_note": "G5",
+  "size": "M",
+  "flags": [],
+  "trees_note": "core",
+  "trees_plural": false,
+  "boundary": "**Not in this slice:** per-build font-size or margin flags (profiles and\n`--css` set those); Pandoc option passthrough; changes to any external profile.",
+  "sections": [
+    {
+      "heading": "Why",
+      "body": "Fixed-width forms, invoices, and tables (the branded-pdf `-mono` wrapper's use\ncase) lose their column alignment when parsed as Markdown, and `.txt` targets\nare rejected. Wrapping the file by hand in a fenced block works today but\nbreaks when the text itself contains a backtick fence. Profile CSS can already\nstyle the result: a WeasyPrint named page (`.quire-verbatim { page: verbatim; }`\nwith `@page verbatim { margin: 0.7in; }`) gives verbatim pages their own\nmargins, so one profile covers prose and fixed-width documents without a\nseparate mono profile."
+    },
+    {
+      "heading": "Files",
+      "body": "- `quire.py` (target suffix check in `plan_job`, `prepare_markdown`, default\n  output naming)\n- `plain.css`, `plain-confidential.css`\n- `test_quire.py`\n- `README.md`, `docs/profiles.md`, `CHANGELOG.md`"
+    },
+    {
+      "heading": "Failing tests",
+      "body": "- A `.txt` target plans a job whose Markdown is one fenced code block inside\n  `<div class=\"quire-verbatim\">`, with the text unchanged.\n- The fence is longer than the longest backtick run in the text, so a line of\n  three backticks in the input stays inside the block.\n- A leading `---` line is not read as YAML front matter.\n- Profile includes and `--include-before` fragments are still prepended.\n- The default output for `notes.txt` is `notes.pdf` (and `notes.html` with\n  `--format html`); variant suffixes still apply.\n- Other suffixes are still rejected with the existing error."
+    },
+    {
+      "heading": "Implement",
+      "body": "Accept `.txt` targets. In preparation, wrap the whole text in a backtick fence\none longer than its longest backtick run (minimum three), inside a\n`quire-verbatim` div, and skip front-matter detection for that input; keep the\nrest of the pipeline, including includes, variants, and suffixes, unchanged.\nMermaid rendering never applies because the block has no `mermaid` class.\nIn both plain stylesheets, style `.quire-verbatim pre` to keep lines unwrapped\nat a smaller size (`white-space: pre; font-size: 9pt`). Document the class and\nthe named-page pattern in `docs/profiles.md`."
+    },
+    {
+      "heading": "Check",
+      "body": "- `python3 test_quire.py`\n- Real build of an 80-column `.txt` form with `--no-config` and with a profile\n  that sets a named page, if the runtime is available; report whether the\n  columns align and fit the page width."
+    },
+    {
+      "heading": "Git",
+      "body": "No commit unless the owner asks."
+    }
+  ],
+  "notes": []
+}

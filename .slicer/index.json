@@ -1,8 +1,8 @@
 {
-  "version": 7,
+  "version": 8,
   "id_prefix": "s",
   "id_width": 2,
-  "next_id": 8,
+  "next_id": 14,
   "preamble": "",
   "passes": [],
   "items": [
@@ -24,6 +24,7 @@
         "trees_literal": false,
         "findings": "G1",
         "discovered_from": "",
+        "cites": [],
         "key": "",
         "pass": "",
         "group": "",
@@ -52,6 +53,7 @@
         "trees_literal": false,
         "findings": "G2",
         "discovered_from": "",
+        "cites": [],
         "key": "",
         "pass": "",
         "group": "",
@@ -80,6 +82,7 @@
         "trees_literal": false,
         "findings": "G2",
         "discovered_from": "",
+        "cites": [],
         "key": "",
         "pass": "",
         "group": "",
@@ -108,6 +111,7 @@
         "trees_literal": false,
         "findings": "G1",
         "discovered_from": "",
+        "cites": [],
         "key": "",
         "pass": "",
         "group": "",
@@ -136,6 +140,7 @@
         "trees_literal": false,
         "findings": "G3",
         "discovered_from": "",
+        "cites": [],
         "key": "",
         "pass": "",
         "group": "",
@@ -166,6 +171,7 @@
         "trees_literal": false,
         "findings": "G3",
         "discovered_from": "",
+        "cites": [],
         "key": "",
         "pass": "",
         "group": "",
@@ -196,6 +202,7 @@
         "trees_literal": false,
         "findings": "G4",
         "discovered_from": "",
+        "cites": [],
         "key": "",
         "pass": "",
         "group": "",
@@ -205,9 +212,191 @@
         "effort": 2,
         "attempts": 1
       }
+    },
+    {
+      "id": "s10",
+      "title": "Turn \\newpage and \\pagebreak into page breaks",
+      "short_title": "Turn \\newpage and \\pagebreak into page breaks",
+      "status": "open",
+      "has_slice": true,
+      "depends_on": [],
+      "note_records": [],
+      "claim": null,
+      "fields": {
+        "size": "S",
+        "flags": [],
+        "trees": [
+          "core"
+        ],
+        "trees_literal": false,
+        "findings": "G5",
+        "discovered_from": "",
+        "cites": [],
+        "key": "",
+        "pass": "",
+        "group": "",
+        "reason": "",
+        "importance": 2,
+        "urgency": 2,
+        "effort": 1,
+        "attempts": 0
+      }
+    },
+    {
+      "id": "s11",
+      "title": "Append stylesheets after the selected CSS",
+      "short_title": "Append stylesheets after the selected CSS",
+      "status": "open",
+      "has_slice": true,
+      "depends_on": [],
+      "note_records": [],
+      "claim": null,
+      "fields": {
+        "size": "S",
+        "flags": [],
+        "trees": [
+          "core"
+        ],
+        "trees_literal": false,
+        "findings": "G5",
+        "discovered_from": "",
+        "cites": [],
+        "key": "",
+        "pass": "",
+        "group": "",
+        "reason": "",
+        "importance": 2,
+        "urgency": 1,
+        "effort": 1,
+        "attempts": 0
+      }
+    },
+    {
+      "id": "s08",
+      "title": "Render plain-text input verbatim",
+      "short_title": "Render plain-text input verbatim",
+      "status": "open",
+      "has_slice": true,
+      "depends_on": [],
+      "note_records": [],
+      "claim": null,
+      "fields": {
+        "size": "M",
+        "flags": [],
+        "trees": [
+          "core"
+        ],
+        "trees_literal": false,
+        "findings": "G5",
+        "discovered_from": "",
+        "cites": [],
+        "key": "",
+        "pass": "",
+        "group": "",
+        "reason": "",
+        "importance": 2,
+        "urgency": 1,
+        "effort": 2,
+        "attempts": 0
+      }
+    },
+    {
+      "id": "s09",
+      "title": "Fail when a profile's required font is missing",
+      "short_title": "Fail when a profile's required font is missing",
+      "status": "open",
+      "has_slice": true,
+      "depends_on": [],
+      "note_records": [],
+      "claim": null,
+      "fields": {
+        "size": "M",
+        "flags": [],
+        "trees": [
+          "core"
+        ],
+        "trees_literal": false,
+        "findings": "G5",
+        "discovered_from": "",
+        "cites": [],
+        "key": "",
+        "pass": "",
+        "group": "",
+        "reason": "",
+        "importance": 2,
+        "urgency": 1,
+        "effort": 2,
+        "attempts": 0
+      }
+    },
+    {
+      "id": "s12",
+      "title": "Render TeX math without a browser or network",
+      "short_title": "Render TeX math without a browser or network",
+      "status": "open",
+      "has_slice": true,
+      "depends_on": [],
+      "note_records": [],
+      "claim": null,
+      "fields": {
+        "size": "L",
+        "flags": [],
+        "trees": [
+          "core",
+          "install"
+        ],
+        "trees_literal": false,
+        "findings": "G5",
+        "discovered_from": "",
+        "cites": [],
+        "key": "",
+        "pass": "",
+        "group": "",
+        "reason": "",
+        "importance": 2,
+        "urgency": 1,
+        "effort": 3,
+        "attempts": 0
+      }
+    },
+    {
+      "id": "s13",
+      "title": "Support Windows",
+      "short_title": "Support Windows",
+      "status": "later",
+      "has_slice": false,
+      "depends_on": [],
+      "note_records": [],
+      "claim": null,
+      "fields": {
+        "size": "L",
+        "flags": [],
+        "trees": [
+          "core",
+          "install"
+        ],
+        "trees_literal": false,
+        "findings": "G5",
+        "discovered_from": "",
+        "cites": [],
+        "key": "",
+        "pass": "",
+        "group": "",
+        "reason": "",
+        "importance": 1,
+        "urgency": 1,
+        "effort": 3,
+        "attempts": 0
+      }
     }
   ],
   "epilogue": "",
-  "goals": "- G1 Safe builds: a build never destroys input, and a failed build leaves the existing output intact.\n- G2 Reliable runtime: PDF builds work with the venv or a PATH WeasyPrint, and installer flags do what they say.\n- G3 Profile management from the CLI: setting a default or removing a profile needs no hand-editing of config.toml.\n- G4 Batch builds: build several documents in one call.",
-  "non_goals": "- Windows support, Pandoc option passthrough, and watch mode are out of scope for this roadmap."
+  "goals": "- G1 Safe builds: a build never destroys input, and a failed build leaves the existing output intact.\n- G2 Reliable runtime: PDF builds work with the venv or a PATH WeasyPrint, and installer flags do what they say.\n- G3 Profile management from the CLI: setting a default or removing a profile needs no hand-editing of config.toml.\n- G4 Batch builds: build several documents in one call.\n- G5 branded-pdf parity: quire does everything branded-pdf does (verbatim text, math, page breaks, per-build overrides, loud font failures), so branded-pdf can become a thin wrapper around it.",
+  "non_goals": "- Pandoc option passthrough and watch mode are out of scope for this roadmap. Windows support is deferred (see its later item), not excluded.",
+  "catalog": {
+    "next_id": 1,
+    "id_prefix": "C",
+    "id_width": 2,
+    "records": []
+  }
 }

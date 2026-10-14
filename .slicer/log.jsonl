@@ -22,3 +22,18 @@
 {"when": "2026-10-08T12:15:28Z", "item": "s06", "action": "status", "from": "started", "to": "done", "note": "Added install.remove_profile (safe TOML edit; refuses unknown names and the current default) and cmd_remove (NAME, --bin-dir, --config-dir), dispatched as 'quire remove'. The NAME-pdf shortcut is deleted only when is_launcher confirms it equals launcher_text for its own python/script; any other file is kept with a stderr warning. The profile directory is never touched. Extracted parse_config/verified/key_assignment/profiles_section, shared by upsert_profile, set_default, and remove_profile (the existing config tests still pass). Two new tests. Unit suite 58 OK. Manual scratch run: removing the default is refused; after --clear, remove deletes the entry and the shortcut and leaves the profile dir. README, docs/profiles.md, and CHANGELOG updated.", "by": "Jon R"}
 {"when": "2026-10-08T12:15:37Z", "item": "s07", "action": "status", "from": "open", "to": "started", "note": "", "by": "Jon R"}
 {"when": "2026-10-08T12:16:26Z", "item": "s07", "action": "status", "from": "started", "to": "done", "note": "target is now nargs='+'. main plans every target before rendering, then errors on -o with more than one target or on two jobs writing the same output, and renders in order (stopping at the first failure). plan_job and render are still single-job. New MultipleTargetTests (2; render patched). Unit suite 60 OK. Real build: two .md inputs wrote two PDFs; -o with two targets exits 1; a missing second target exits 1 with no first output written. README and CHANGELOG updated.", "by": "Jon R"}
+{"when": "2026-10-14T14:22:03Z", "item": "s08", "action": "add", "from": "", "to": "open", "note": "Render plain-text input verbatim"}
+{"when": "2026-10-14T14:26:08Z", "item": "goals", "action": "prose", "from": "", "to": "", "note": "edit"}
+{"when": "2026-10-14T14:26:08Z", "item": "non_goals", "action": "prose", "from": "", "to": "", "note": "edit"}
+{"when": "2026-10-14T14:26:08Z", "item": "s08", "action": "set", "from": "", "to": "", "note": "findings -→G5"}
+{"when": "2026-10-14T14:29:43Z", "item": "s09", "action": "add", "from": "", "to": "open", "note": "Fail when a profile's required font is missing"}
+{"when": "2026-10-14T14:29:43Z", "item": "s10", "action": "add", "from": "", "to": "open", "note": "Turn \\newpage and \\pagebreak into page breaks"}
+{"when": "2026-10-14T14:29:43Z", "item": "s11", "action": "add", "from": "", "to": "open", "note": "Append stylesheets after the selected CSS"}
+{"when": "2026-10-14T14:29:43Z", "item": "s12", "action": "add", "from": "", "to": "open", "note": "Render TeX math without a browser or network"}
+{"when": "2026-10-14T14:29:43Z", "item": "s13", "action": "add", "from": "", "to": "later", "note": "Support Windows"}
+{"when": "2026-10-14T15:58:24Z", "item": "s10", "action": "move", "from": "10", "to": "8", "note": ""}
+{"when": "2026-10-14T15:58:24Z", "item": "s11", "action": "move", "from": "11", "to": "9", "note": ""}
+{"when": "2026-10-14T15:58:24Z", "item": "s08", "action": "move", "from": "10", "to": "10", "note": ""}
+{"when": "2026-10-14T15:58:24Z", "item": "s09", "action": "move", "from": "11", "to": "11", "note": ""}
+{"when": "2026-10-14T15:58:25Z", "item": "s12", "action": "move", "from": "12", "to": "12", "note": ""}
+{"when": "2026-10-14T15:58:32Z", "item": "s09", "action": "set", "from": "", "to": "", "note": "urgency 2→1"}
