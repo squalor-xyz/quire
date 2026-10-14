@@ -915,6 +915,138 @@ class FrontMatterTests(unittest.TestCase):
         self.assertEqual(quire.split_front_matter(text)[1], "\nBody\n")
 
 
+class VerbatimTests(unittest.TestCase):
+    def setUp(self) -> None:
+        temporary = temporary_directory()
+        self.addCleanup(temporary.cleanup)
+        self.root = Path(temporary.name).resolve()
+
+    def plan(self, text: str, name: str = "form.txt", **kwargs) -> quire.Job:
+        (self.root / name).write_text(text, encoding="utf-8")
+        kwargs.setdefault("profile", None)
+        return quire.plan_job(name, cwd=self.root, **kwargs)
+
+    def test_text_target_is_one_fenced_block_in_a_verbatim_div(self) -> None:
+        text = "Name    Qty\n  # not a heading\n\tTabbed  *x*\n"
+        job = self.plan(text)
+        self.assertEqual(
+            job.markdown, "::: quire-verbatim\n```\n" + text + "```\n:::\n"
+        )
+        self.assertEqual(job.output, self.root / "form.pdf")
+        self.assertEqual(job.css, [quire.PLAIN_CSS])
+
+    def test_missing_final_newline_still_closes_the_fence(self) -> None:
+        self.assertEqual(
+            self.plan("a\nb").markdown, "::: quire-verbatim\n```\na\nb\n```\n:::\n"
+        )
+
+    def test_fence_outgrows_backtick_runs_in_the_text(self) -> None:
+        for text, fence in (("x\n```\ny\n", "````"), ("a `````` b\n", "`" * 7),
+                            ("`` one\n", "```")):
+            with self.subTest(text=text):
+                job = self.plan(text)
+                self.assertEqual(
+                    job.markdown, f"::: quire-verbatim\n{fence}\n{text}{fence}\n:::\n"
+                )
+
+    def test_leading_rule_is_not_front_matter(self) -> None:
+        text = "---\ntitle: Form\n---\nBody\n"
+        job = self.plan(text)
+        self.assertEqual(quire.split_front_matter(job.markdown)[0], "")
+        self.assertIn(text, job.markdown)
+        job = self.plan(text, confidential=True)
+        front, body = quire.split_front_matter(job.markdown)
+        self.assertEqual(front.count("title"), 0)
+        self.assertIn("confidential: true", front)
+        self.assertIn(text, body)
+
+    def test_includes_and_variant_suffix_still_apply(self) -> None:
+        (self.root / "intro.html").write_text("<p>Intro</p>", encoding="utf-8")
+        job = self.plan(
+            "Hello\n", confidential=True, include_before=[Path("intro.html")],
+            format="html",
+        )
+        self.assertEqual(job.output, self.root / "form-confidential.html")
+        body = quire.split_front_matter(job.markdown)[1]
+        self.assertLess(body.index("confidential-banner"), body.index("Intro"))
+        self.assertLess(body.index("Intro"), body.index("::: quire-verbatim"))
+
+    def test_profile_include_conditions_see_the_text(self) -> None:
+        profile = self.root / "profile"
+        profile.mkdir()
+        (profile / "style.css").write_text("body {}", encoding="utf-8")
+        (profile / "mark.html").write_text("<p>Mark</p>", encoding="utf-8")
+        (profile / "profile.toml").write_text(
+            '[variants.default]\ncss = ["style.css"]\n[[variants.default.includes]]\n'
+            'file = "mark.html"\nonly_if_body_contains = ["FORM-7"]\n', encoding="utf-8")
+        loaded = quire.load_profile(profile)
+        self.assertIn("<p>Mark</p>", self.plan("FORM-7\n", profile=loaded).markdown)
+        self.assertNotIn("<p>Mark</p>", self.plan("other\n", profile=loaded).markdown)
+
+    def test_other_suffixes_are_still_rejected(self) -> None:
+        for name in ("form.text", "form.pdf", "form"):
+            with self.subTest(name=name):
+                with self.assertRaisesRegex(
+                    SystemExit, "target must be a .md, .markdown, or .txt file"
+                ):
+                    self.plan("x\n", name)
+
+    def test_uppercase_suffix_is_accepted(self) -> None:
+        self.assertEqual(self.plan("x\n", "FORM.TXT").output, self.root / "FORM.pdf")
+
+    def test_missing_target_error_does_not_say_markdown(self) -> None:
+        with self.assertRaisesRegex(SystemExit, r"^error: file not found: gone\.txt$"):
+            quire.plan_job("gone.txt", profile=None, cwd=self.root)
+
+    def test_builtin_with_text_source_is_wrapped(self) -> None:
+        profile = self.root / "profile"
+        profile.mkdir()
+        (profile / "style.css").write_text("body {}", encoding="utf-8")
+        (profile / "sheet.txt").write_text("a  b\n", encoding="utf-8")
+        (profile / "profile.toml").write_text(
+            '[variants.default]\ncss = ["style.css"]\n[builtins.sheet]\n'
+            'source = "sheet.txt"\noutput = "sheet.pdf"\nvariant = "default"\n',
+            encoding="utf-8")
+        job = quire.plan_job("sheet", profile=quire.load_profile(profile), cwd=self.root)
+        self.assertEqual(job.markdown, "::: quire-verbatim\n```\na  b\n```\n:::\n")
+
+    def test_empty_text_file_plans(self) -> None:
+        job = self.plan("")
+        self.assertEqual(job.markdown, "::: quire-verbatim\n```\n\n```\n:::\n")
+
+    def test_plain_stylesheets_keep_verbatim_lines_unwrapped(self) -> None:
+        for path in (quire.PLAIN_CSS, quire.PLAIN_CONFIDENTIAL_CSS):
+            with self.subTest(css=path.name):
+                css = re.sub(r"\s+", " ", path.read_text(encoding="utf-8"))
+                self.assertIn(
+                    ".quire-verbatim pre { white-space: pre; font-size: 9pt; }", css
+                )
+
+    def test_insertion_point_includes_prepend_for_text(self) -> None:
+        profile = self.root / "profile"
+        profile.mkdir()
+        (profile / "style.css").write_text("body {}", encoding="utf-8")
+        (profile / "mark.html").write_text("<p>Mark</p>", encoding="utf-8")
+        (profile / "profile.toml").write_text(
+            '[variants.default]\ncss = ["style.css"]\n[[variants.default.includes]]\n'
+            'file = "mark.html"\nafter_marker = "<div"\nclose_tag = "</div>"\n',
+            encoding="utf-8")
+        loaded = quire.load_profile(profile)
+        text = "<div>\nrow\n</div>\n"
+        job = self.plan(text, profile=loaded)
+        self.assertEqual(
+            job.markdown, "\n<p>Mark</p>\n\n::: quire-verbatim\n```\n" + text + "```\n:::\n"
+        )
+        (self.root / "doc.md").write_text(text, encoding="utf-8")
+        md = quire.plan_job("doc.md", profile=loaded, cwd=self.root)
+        self.assertEqual(md.markdown, "<div>\nrow\n</div>\n\n<p>Mark</p>\n\n")
+
+    def test_mermaid_fence_in_text_does_not_trigger_the_preflight(self) -> None:
+        job = self.plan("```mermaid\nflowchart LR\n A-->B\n```\n")
+        with patch("quire_mermaid.shutil.which", side_effect=AssertionError("checked")):
+            quire.check_mermaid([job])
+
+
 class MultipleTargetTests(unittest.TestCase):
     def setUp(self) -> None:
         temporary = temporary_directory()
