@@ -426,7 +426,12 @@ def insertion_point(body: str, spec: Include) -> int | None:
     return pos + len(spec.close_tag)
 
 
-def apply_includes(md_text: str, includes: list[Include], extra_prefixes: list[str]) -> str:
+def apply_includes(
+    md_text: str,
+    includes: list[Include],
+    extra_prefixes: list[str],
+    verbatim: bool = False,
+) -> str:
     fm, body = split_front_matter(md_text)
     prefixes: list[str] = []
     afters: list[tuple[int, str]] = []
@@ -436,7 +441,7 @@ def apply_includes(md_text: str, includes: list[Include], extra_prefixes: list[s
         piece = spec.text.strip()
         if not piece:
             continue
-        pos = insertion_point(body, spec)
+        pos = None if verbatim else insertion_point(body, spec)
         if pos is None:
             prefixes.append(piece)
         else:
@@ -470,13 +475,32 @@ def apply_includes(md_text: str, includes: list[Include], extra_prefixes: list[s
     return fm + "\n" + prefix + body.lstrip("\n")
 
 
-def prepare_markdown(md_text: str, variant: Variant | None, extra_prefixes: list[str]) -> str:
+def verbatim_markdown(text: str) -> str:
+    """Wrap plain text in one code block so Pandoc keeps every line as written.
+
+    The fence is longer than any backtick run in the text, so no line can close
+    it, and the text never starts with a front matter opener.
+    """
+    longest = max((len(run) for run in re.findall(r"`+", text)), default=0)
+    fence = "`" * max(3, longest + 1)
+    if not text.endswith("\n"):
+        text += "\n"
+    return f"::: quire-verbatim\n{fence}\n{text}{fence}\n:::\n"
+
+
+def prepare_markdown(
+    md_text: str,
+    variant: Variant | None,
+    extra_prefixes: list[str],
+    verbatim: bool = False,
+) -> str:
+    """Add front matter keys and includes; `verbatim` text has no insertion points."""
     if variant is None:
         if not extra_prefixes:
             return md_text
         return apply_includes(md_text, [], extra_prefixes)
     text = ensure_front_matter(md_text, variant.ensure_in_front_matter, variant.metadata)
-    return apply_includes(text, variant.includes, extra_prefixes)
+    return apply_includes(text, variant.includes, extra_prefixes, verbatim)
 
 
 def resolve_source(
@@ -500,8 +524,8 @@ def resolve_source(
         return path.resolve(), None
     if profile and profile.builtins:
         known = ", ".join(sorted(profile.builtins))
-        raise SystemExit(f"error: markdown file not found: {target} (built-ins: {known})")
-    raise SystemExit(f"error: markdown file not found: {target}")
+        raise SystemExit(f"error: file not found: {target} (built-ins: {known})")
+    raise SystemExit(f"error: file not found: {target}")
 
 
 def _deduped_paths(paths: list[Path]) -> list[Path]:
@@ -535,8 +559,8 @@ def plan_job(
 ) -> Job:
     work = (cwd or Path.cwd()).resolve()
     source, builtin = resolve_source(target, profile, work)
-    if builtin is None and source.suffix.lower() not in {".md", ".markdown"}:
-        raise SystemExit("error: target must be a markdown file or a built-in name")
+    if builtin is None and source.suffix.lower() not in {".md", ".markdown", ".txt"}:
+        raise SystemExit("error: target must be a .md, .markdown, or .txt file or a built-in name")
 
     if builtin is not None:
         forced_letterhead, forced_confidential = flags_for_builtin(builtin.variant)
@@ -604,7 +628,10 @@ def plan_job(
         css_files.extend(checked(raw) for raw in add_css or [])
 
     text = source.read_text(encoding="utf-8")
-    prepared = prepare_markdown(text, variant, extra)
+    verbatim = source.suffix.lower() == ".txt"
+    if verbatim:
+        text = verbatim_markdown(text)
+    prepared = prepare_markdown(text, variant, extra, verbatim)
 
     roots: list[Path] = []
     if resource_path is not None:
@@ -880,7 +907,7 @@ def _parser(
     parser.add_argument(
         "target",
         nargs="+",
-        help="Paths to .md files, or built-in names from the profile." + builtin_help,
+        help="Paths to .md or .txt files, or built-in names from the profile." + builtin_help,
     )
     known = ""
     if user_config and user_config.profiles:

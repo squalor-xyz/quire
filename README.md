@@ -89,9 +89,9 @@ the document either way.
 Pass `--no-config` when a profile is your default and the document should
 stay unbranded. `--letterhead` still requires a profile.
 
-Input files must end in `.md` or `.markdown`. Output directories are created
-automatically; an existing output PDF is overwritten, but an output path that
-is the source file is an error. `--css`, `--add-css`, and
+Input files must end in `.md`, `.markdown`, or `.txt`. Output directories are
+created automatically; an existing output PDF is overwritten, but an output
+path that is the source file is an error. `--css`, `--add-css`, and
 `--include-before` can be repeated. `--add-css` appends stylesheets, in order,
 after the selected stylesheets (the profile variant's, `plain.css`,
 `plain-confidential.css`, or `--css`), so a profile's branding and variant
@@ -131,6 +131,17 @@ Rendered SVGs are cached in `$XDG_CACHE_HOME/quire/mermaid`, or
 contents, and renderer/browser versions determine the cache key. Repeatability
 assumes the same pinned runtime and fonts; clear this cache after changing system
 fonts. Deleting the cache is safe; the next build recreates it.
+
+## Plain text
+
+A `.txt` file is not parsed as Markdown. Every line is kept as written, in one
+code block inside `<div class="quire-verbatim">`, so fixed-width forms,
+invoices, and tables keep their columns. Lines are not wrapped (the plain
+stylesheets use 9pt text, so about 90 columns fit on letter paper), a leading
+`---` is not front matter, and backticks, `\newpage`, and Mermaid fences in
+the text stay text. Tabs are expanded to 4-column stops. Output naming,
+variants, and includes work as for Markdown; see [Profiles](docs/profiles.md)
+to give these pages their own margins.
 
 ## Page breaks
 

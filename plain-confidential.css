@@ -59,3 +59,8 @@ tr { break-inside: avoid; page-break-inside: avoid; }
 img {
   max-width: 100%;
 }
+
+.quire-verbatim pre {
+  white-space: pre;
+  font-size: 9pt;
+}

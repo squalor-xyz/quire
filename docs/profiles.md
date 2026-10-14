@@ -187,6 +187,38 @@ literal strings, not an HTML parser. When using multiple insertion points, list
 includes in document order. CLI `--include-before` fragments are prepended after
 the profile's prepended fragments; they do not disable profile includes.
 
+## Plain-text input
+
+A `.txt` target is wrapped, before includes run, in a fenced block (longer than
+any backtick run in the text) inside a fenced div, so Pandoc emits
+`<div class="quire-verbatim"><pre class="..."><code>...</code></pre></div>`
+with the text unchanged. Includes see the wrapped text, so their body
+conditions match words in the file. Both plain stylesheets set
+`.quire-verbatim pre` to `white-space: pre; font-size: 9pt`. Pandoc expands
+tabs to 4-column stops.
+
+A profile stylesheet can give these pages their own margins with a WeasyPrint
+named page, so one profile covers prose and fixed-width documents:
+
+```css
+.quire-verbatim { page: verbatim; }
+@page verbatim { margin: 0.7in; }
+```
+
+The unnamed `@page` still applies, so running headers and footers carry over;
+`@page verbatim` overrides only what it sets. Rules on other named pages
+(`@page letterhead`) do not apply. Pseudo-class rules such as `@page :first`
+still match a verbatim page that falls first; use `@page verbatim:first` to
+target that case.
+
+Switching to a named page forces a page break. An include that stays in the
+flow (an intro fragment, a letterhead block) therefore lands alone on its own
+page before the text, while running elements such as the confidential banner do
+not. Use running elements for those fragments, or skip the named page.
+
+Includes with an insertion point (`after_marker`) are prepended for `.txt`
+input, since markers inside verbatim text mean nothing.
+
 ## Resource paths
 
 The resource search roots are, in order: CLI `--resource-path`, profile

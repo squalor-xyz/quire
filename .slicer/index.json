@@ -275,10 +275,22 @@
       "id": "s08",
       "title": "Render plain-text input verbatim",
       "short_title": "Render plain-text input verbatim",
-      "status": "open",
+      "status": "done",
       "has_slice": true,
       "depends_on": [],
-      "note_records": [],
+      "note_records": [
+        {
+          "id": "32ec8249-0cba-4956-a5ef-188054279bce",
+          "kind": "",
+          "text": "**2026-10-14** — .txt targets render verbatim: one fenced block (longer than any backtick run) in a quire-verbatim div, no front matter, insertion-point includes prepend; plain stylesheets keep lines unwrapped at 9pt; named-page pattern documented and verified by render (unnamed @page and :first still apply, verbatim:first overrides, in-flow includes land on their own page). 101 tests green; gate PASS; real PDF renders checked with pdftotext. Not handled: form feeds do not break pages.",
+          "created_at": "2026-10-14T17:57:01Z",
+          "attempt": 1,
+          "by": "Jon Robbins",
+          "verified_by": "",
+          "verified_at": "",
+          "stale_after": ""
+        }
+      ],
       "claim": null,
       "fields": {
         "size": "M",
@@ -297,7 +309,7 @@
         "importance": 2,
         "urgency": 1,
         "effort": 2,
-        "attempts": 0
+        "attempts": 1
       }
     },
     {
