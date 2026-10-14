@@ -29,7 +29,7 @@ import tomllib
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from quire_mermaid import front_matter_end
+from quire_mermaid import fence_locations, front_matter_end, require_renderer
 
 __version__ = "1.1.1"
 
@@ -628,7 +628,12 @@ def plan_job(
         if variables:
             mermaid["themeVariables"] = variables
     if variant:
-        include_sources.extend((item.source, item.text) for item in variant.includes if item.source)
+        body = split_front_matter(text)[1]
+        include_sources.extend(
+            (item.source, item.text)
+            for item in variant.includes
+            if item.source and include_applies(item, body)
+        )
     return Job(
         source=source,
         output=out,
@@ -982,6 +987,46 @@ def resolve_profile_arg(
     return None
 
 
+# Anything that can open a container where an indented fence is not code.
+CONTAINER_OPENERS = re.compile(
+    r"^\s*(?:[-+*]|\d+[.)]|[A-Za-z#]+[.)]|\(\S+\)|:)\s|^\[\^"
+)
+
+
+def is_indented_code(text: str, line: int) -> bool:
+    """True for a fence indented 4+ columns with no container opener before it."""
+    lines = text.splitlines()
+    opener = re.sub(r"^(?: {0,3}>[ \t]?)+", "", lines[line - 1]).expandtabs(4)
+    if len(opener) - len(opener.lstrip(" ")) < 4:
+        return False
+    return not any(CONTAINER_OPENERS.match(earlier) for earlier in lines[: line - 1])
+
+
+def check_mermaid(jobs: list[Job]) -> None:
+    """Fail before any render if a diagram needs a renderer that is missing.
+
+    Fences are found in the source text, so a false positive only costs the hint.
+    """
+    first = next(
+        (
+            (path, line)
+            for job in jobs
+            if not job.no_mermaid
+            for path, text in [(job.source, job.original_markdown or job.markdown),
+                               *job.include_sources]
+            for _, line in fence_locations(text)
+            if not is_indented_code(text, line)
+        ),
+        None,
+    )
+    if first is None:
+        return
+    try:
+        require_renderer()
+    except SystemExit as exc:
+        raise SystemExit(f"error: {first[0]}: line {first[1]}: {exc}") from exc
+
+
 def main(
     argv: list[str] | None = None,
     *,
@@ -1073,6 +1118,7 @@ def main(
                 f"error: {sources[job.output]} and {job.source} would both write {job.output}"
             )
         sources[job.output] = job.source
+    check_mermaid(jobs)
     for job in jobs:
         render(job)
 
