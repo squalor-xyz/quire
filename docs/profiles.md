@@ -57,8 +57,10 @@ Selection order, first match:
 6. User config `default`
 7. Plain output with `plain.css`
 
-Unknown names and missing profiles produce errors. `--no-config` overrides
-environment variables and the default, but an explicit `--profile` wins.
+Unknown names and missing profiles produce errors. An unknown name's error names the
+config file it read (noting if that file is missing), where the name came from, and the
+command that fixes it. `--no-config` overrides environment variables and the default,
+but an explicit `--profile` wins.
 
 The words `install`, `configs`, `default`, and `remove` as the first argument
 run those subcommands. To build a built-in with one of those names, put an

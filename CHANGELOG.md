@@ -4,6 +4,7 @@
 
 - Turn `\newpage`, `\pagebreak`, and `\clearpage` into page breaks, as a block or inside a paragraph. Pandoc treats them as raw TeX and the HTML writer dropped them, so a page break written for LaTeX silently vanished. An optional `[n]` or `{}` suffix is accepted. Other raw TeX is still dropped, now with one warning per build naming the source file and a dropped command, and paragraphs left empty by that are removed.
 - Add a repeatable `--add-css PATH` option that appends stylesheets after the selected stylesheets (profile variant, `plain.css`, `plain-confidential.css`, or `--css`), so a one-off adjustment no longer means copying the profile stylesheet. `--no-css` still passes none. Unless `--no-css` is set, a missing added stylesheet is an error before any output is written. Overriding a profile's named or pseudo-class `@page` rules (`@page letterhead`, `@page :first`) needs `!important`, and works only if the profile rule is not itself `!important`.
+- Say where an unknown config name was looked up. The error now names the config file it read, notes when that file is missing, says whether the name came from `QUIRE_CONFIG` or the config `default`, and suggests the fix: `quire install <profile-dir> --name NAME`, or `quire default` for a stale default. The known names are still listed.
 
 ## 1.1.1
 
