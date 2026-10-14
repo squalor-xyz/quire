@@ -393,10 +393,22 @@
       "id": "s14",
       "title": "Say where profiles are looked up and how to register one when a --config name is unknown",
       "short_title": "Say where profiles are looked up and how to register one when a --config name is unknown",
-      "status": "open",
+      "status": "done",
       "has_slice": true,
       "depends_on": [],
-      "note_records": [],
+      "note_records": [
+        {
+          "id": "0878390d-cb2d-4bd7-bbf7-2b1d6e46a21d",
+          "kind": "",
+          "text": "**2026-10-14** — Unknown --config/QUIRE_CONFIG/default names now name the config file read (noting if missing) and the name's source, and suggest quire install (shell-quoted) or quire default for a stale default. 82 tests green; gate PASS; real CLI run checked.",
+          "created_at": "2026-10-14T17:24:57Z",
+          "attempt": 1,
+          "by": "Jon Robbins",
+          "verified_by": "",
+          "verified_at": "",
+          "stale_after": ""
+        }
+      ],
       "claim": null,
       "fields": {
         "size": "S",
@@ -415,7 +427,7 @@
         "importance": 2,
         "urgency": 2,
         "effort": 1,
-        "attempts": 0
+        "attempts": 1
       }
     },
     {

@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import io
+import os
 import stat
 import tempfile
 import tomllib
@@ -742,6 +743,77 @@ class NamedConfigTests(unittest.TestCase):
                 quire.main(["--config", "acme", "x.md"], user_config=cfg)
             with self.assertRaisesRegex(SystemExit, "profile not found"):
                 quire.main(["--profile", str(profile), "x.md"], user_config=cfg)
+
+    def test_unknown_config_names_config_path(self) -> None:
+        with temporary_directory() as tmp:
+            path = Path(tmp) / "cfg" / "config.toml"
+            cfg = quire.load_user_config(path)
+            with self.assertRaises(SystemExit) as caught:
+                quire.main(["--config", "acme", "x.md"], user_config=cfg)
+            self.assertIn(f"{path} (missing)", str(caught.exception))
+
+    def test_unknown_config_suggests_install(self) -> None:
+        with temporary_directory() as tmp:
+            cfg = quire.load_user_config(Path(tmp) / "config.toml")
+            with self.assertRaises(SystemExit) as caught:
+                quire.main(["--config", "acme", "x.md"], user_config=cfg)
+            self.assertIn("quire install <profile-dir> --name acme", str(caught.exception))
+
+    def test_unknown_config_lists_known_names(self) -> None:
+        with temporary_directory() as tmp:
+            root = Path(tmp)
+            config_dir = root / "cfg"
+            common = ["--bin-dir", str(root / "bin"), "--config-dir", str(config_dir)]
+            with redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()):
+                quire.main(["install", str(self._profile(root, "other")), *common])
+            path = config_dir / "config.toml"
+            cfg = quire.load_user_config(path)
+            with self.assertRaises(SystemExit) as caught:
+                quire.main(["--config", "acme", "x.md"], user_config=cfg)
+            message = str(caught.exception)
+            self.assertIn("(known: other)", message)
+            self.assertIn(str(path), message)
+            self.assertNotIn("(missing)", message)
+
+    def test_unknown_config_from_environment_names_the_source(self) -> None:
+        with temporary_directory() as tmp:
+            cfg = quire.load_user_config(Path(tmp) / "config.toml")
+            with self.assertRaises(SystemExit) as caught:
+                quire.resolve_profile_arg(
+                    None, None, user_config=cfg, environ={"QUIRE_CONFIG": "acme"}
+                )
+            message = str(caught.exception)
+            self.assertIn("unknown config 'acme' from QUIRE_CONFIG (known:", message)
+            self.assertIn("config.toml (missing)", message)
+            self.assertIn("quire install <profile-dir> --name acme", message)
+
+    def test_stale_config_default_suggests_default_command(self) -> None:
+        with temporary_directory() as tmp:
+            path = Path(tmp) / "config.toml"
+            path.write_text('default = "gone"\n[profiles]\n', encoding="utf-8")
+            cfg = quire.load_user_config(path)
+            with self.assertRaises(SystemExit) as caught:
+                quire.resolve_profile_arg(None, None, user_config=cfg, environ={})
+            message = str(caught.exception)
+            self.assertIn("unknown config 'gone' from the config default (known:", message)
+            self.assertIn(f"config file: {path}\n", message)
+            self.assertIn("quire default <name>", message)
+            self.assertIn("quire default --clear", message)
+            self.assertNotIn("quire install", message)
+
+    def test_unknown_config_quotes_name_in_install_hint(self) -> None:
+        with temporary_directory() as tmp:
+            cfg = quire.load_user_config(Path(tmp) / "config.toml")
+            with self.assertRaises(SystemExit) as caught:
+                quire.main(["--config", "my co", "x.md"], user_config=cfg)
+            self.assertIn("--name 'my co'", str(caught.exception))
+
+    def test_unknown_config_reads_xdg_config_home(self) -> None:
+        with temporary_directory() as tmp:
+            env = {"XDG_CONFIG_HOME": tmp, "QUIRE_CONFIG": "", "QUIRE_PROFILE": ""}
+            with patch.dict(os.environ, env), self.assertRaises(SystemExit) as caught:
+                quire.main(["--config", "acme", "x.md"])
+            self.assertIn(f"{tmp}/quire/config.toml (missing)", str(caught.exception))
 
     def test_rename_updates_path_and_keeps_default(self) -> None:
         with temporary_directory() as tmp:

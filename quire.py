@@ -825,12 +825,23 @@ def load_user_config(path: Path | None = None) -> UserConfig:
     return UserConfig(default=default.strip(), profiles=profiles, path=cfg_path)
 
 
-def profile_from_name(cfg: UserConfig, name: str) -> Path:
+def profile_from_name(cfg: UserConfig, name: str, source: str = "") -> Path:
+    """Look up a registered profile; source says where an implicit name came from."""
     if not name:
         raise SystemExit("error: config name is empty")
     if name not in cfg.profiles:
         known = ", ".join(sorted(cfg.profiles)) or "(none)"
-        raise SystemExit(f"error: unknown config {name!r} (known: {known})")
+        origin = f" from {source}" if source else ""
+        lines = [f"error: unknown config {name!r}{origin} (known: {known})"]
+        if cfg.path is not None:
+            note = "" if cfg.path.is_file() else " (missing)"
+            lines.append(f"config file: {cfg.path}{note}")
+        if source == "the config default":
+            lines.append("fix it with: quire default <name>, or quire default --clear")
+        else:
+            hint = f"quire install <profile-dir> --name {shlex.quote(name)}"
+            lines.append(f"register it with: {hint}")
+        raise SystemExit("\n".join(lines))
     return cfg.profiles[name]
 
 
@@ -973,12 +984,12 @@ def resolve_profile_arg(
         return profile_from_name(cfg, config_name)
     env_name = env.get("QUIRE_CONFIG", "").strip()
     if env_name:
-        return profile_from_name(cfg, env_name)
+        return profile_from_name(cfg, env_name, "QUIRE_CONFIG")
     env_path = env.get("QUIRE_PROFILE", "").strip()
     if env_path:
         return Path(env_path).expanduser()
     if cfg.default:
-        return profile_from_name(cfg, cfg.default)
+        return profile_from_name(cfg, cfg.default, "the config default")
     return None
 
 
