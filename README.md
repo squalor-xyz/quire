@@ -66,6 +66,7 @@ quire notes.md -o output/notes.pdf       # Choose an output path
 quire notes.md --no-config              # Use the plain style
 quire notes.md --no-config --confidential
 quire notes.md --css custom.css         # Replace the selected stylesheet
+quire notes.md --add-css tweak.css      # Append a stylesheet after the selected one
 quire notes.md --no-css                 # Pass no stylesheet to Pandoc
 quire notes.md --include-before intro.html
 quire notes.md --resource-path assets   # Set the resource root
@@ -78,15 +79,24 @@ quire *.md                               # Build several documents
 
 `--confidential` with no profile uses `plain-confidential.css`, prepends a
 Confidential banner, and writes `notes-confidential.pdf`. The banner repeats
-in the top margin on every page. `--css` replaces that stylesheet and
-`--no-css` passes none; the banner text stays in the document either way.
+in the top margin on every page. `--css` replaces that stylesheet,
+`--add-css` appends to it, and `--no-css` passes none; the banner text stays in
+the document either way.
 Pass `--no-config` when a profile is your default and the document should
 stay unbranded. `--letterhead` still requires a profile.
 
 Input files must end in `.md` or `.markdown`. Output directories are created
 automatically; an existing output PDF is overwritten, but an output path that
-is the source file is an error. `--css` and
-`--include-before` can be repeated. `--no-css` takes precedence over `--css`.
+is the source file is an error. `--css`, `--add-css`, and
+`--include-before` can be repeated. `--add-css` appends stylesheets, in order,
+after the selected stylesheets (the profile variant's, `plain.css`,
+`plain-confidential.css`, or `--css`), so a profile's branding and variant
+selection are kept while a few rules change. `--no-css` takes precedence over
+both `--css` and `--add-css`. A profile's named (`@page letterhead`) and
+pseudo-class (`@page :first`) `@page` rules outrank a plain
+`@page { margin: ... }`; add `!important` to override them, which works only
+when the profile's own rule is not `!important`. Unless `--no-css` is set, a
+missing added stylesheet is an error before any output is written.
 Relative command-line paths resolve from the working directory.
 
 Several targets build in order with the same options, each to its default

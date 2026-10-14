@@ -151,7 +151,15 @@ By default, PDFs are written beside the input, or to the built-in's `output`.
 both the default output and suffix.
 
 `css` is a list of stylesheets; an omitted or empty list falls back to
-`plain.css`. CLI `--css` replaces that list; `--no-css` passes none.
+`plain.css`. CLI `--css` replaces that list; `--no-css` passes none. CLI `--add-css PATH`
+(repeatable) appends stylesheets after the selected list, whether it came from
+the profile variant, `plain.css`, `plain-confidential.css`, or `--css`;
+`--no-css` drops them too. Added rules override earlier ones of equal
+specificity, but a profile's named (`@page letterhead { ... }`) and pseudo-class
+(`@page :first { ... }`) rules outrank an unnamed `@page`, so override those
+with `!important`, e.g. `@page { margin: 0.5in !important; }`. That works only
+when the profile's own rule is not `!important`. Unless `--no-css` is set, a
+missing added stylesheet is an error before any output is written.
 `metadata` contains string values passed to Pandoc. `ensure_in_front_matter`
 adds missing keys to YAML front matter, using the metadata value or `true`.
 The current missing-key check is a case-insensitive substring check, not a YAML

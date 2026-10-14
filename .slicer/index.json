@@ -246,7 +246,7 @@
       "id": "s11",
       "title": "Append stylesheets after the selected CSS",
       "short_title": "Append stylesheets after the selected CSS",
-      "status": "open",
+      "status": "done",
       "has_slice": true,
       "depends_on": [],
       "note_records": [],
@@ -268,7 +268,7 @@
         "importance": 2,
         "urgency": 1,
         "effort": 1,
-        "attempts": 0
+        "attempts": 1
       }
     },
     {
