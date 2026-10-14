@@ -2,7 +2,7 @@
   "version": 8,
   "id_prefix": "s",
   "id_width": 2,
-  "next_id": 14,
+  "next_id": 17,
   "preamble": "",
   "passes": [],
   "items": [
@@ -386,6 +386,95 @@
         "importance": 1,
         "urgency": 1,
         "effort": 3,
+        "attempts": 0
+      }
+    },
+    {
+      "id": "s14",
+      "title": "Say where profiles are looked up and how to register one when a --config name is unknown",
+      "short_title": "Say where profiles are looked up and how to register one when a --config name is unknown",
+      "status": "open",
+      "has_slice": true,
+      "depends_on": [],
+      "note_records": [],
+      "claim": null,
+      "fields": {
+        "size": "S",
+        "flags": [],
+        "trees": [
+          "core"
+        ],
+        "trees_literal": false,
+        "findings": "",
+        "discovered_from": "",
+        "cites": [],
+        "key": "",
+        "pass": "",
+        "group": "",
+        "reason": "",
+        "importance": 2,
+        "urgency": 2,
+        "effort": 1,
+        "attempts": 0
+      }
+    },
+    {
+      "id": "s15",
+      "title": "Check for the Mermaid renderer before building starts",
+      "short_title": "Check for the Mermaid renderer before building starts",
+      "status": "open",
+      "has_slice": true,
+      "depends_on": [],
+      "note_records": [],
+      "claim": null,
+      "fields": {
+        "size": "S",
+        "flags": [],
+        "trees": [
+          "core"
+        ],
+        "trees_literal": false,
+        "findings": "",
+        "discovered_from": "",
+        "cites": [],
+        "key": "",
+        "pass": "",
+        "group": "",
+        "reason": "",
+        "importance": 2,
+        "urgency": 2,
+        "effort": 1,
+        "attempts": 0
+      }
+    },
+    {
+      "id": "s16",
+      "title": "Let a caller prefer a named profile without requiring it",
+      "short_title": "Let a caller prefer a named profile without requiring it",
+      "status": "open",
+      "has_slice": true,
+      "depends_on": [
+        "s14"
+      ],
+      "note_records": [],
+      "claim": null,
+      "fields": {
+        "size": "S",
+        "flags": [],
+        "trees": [
+          "core"
+        ],
+        "trees_literal": false,
+        "findings": "",
+        "discovered_from": "",
+        "cites": [],
+        "key": "",
+        "pass": "",
+        "group": "",
+        "reason": "",
+        "importance": 2,
+        "urgency": 2,
+        "effort": 1,
         "attempts": 0
       }
     }

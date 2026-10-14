@@ -1,0 +1,41 @@
+{
+  "id": "s15",
+  "title": "Check for the Mermaid renderer before building starts",
+  "lead": [
+    "A document with a Mermaid block fails with \"Mermaid tooling missing\" only\nwhen `render` reaches its first diagram. By then Pandoc has already parsed\nthe document. With several targets (`quire a.md b.md`), the jobs are\nrendered in order, so earlier outputs are written before a later document\nfails."
+  ],
+  "depends_note": null,
+  "findings_note": "",
+  "size": "S",
+  "flags": [],
+  "trees_note": "core",
+  "trees_plural": false,
+  "boundary": "**Not in this slice:** installing the renderer automatically; changing the\ninstall hint or the `--no-mermaid` behavior; checking Pandoc or WeasyPrint\nearlier.",
+  "sections": [
+    {
+      "heading": "Why",
+      "body": "The error already names the fix (`python3 install.py --with-mermaid`, or\n`--no-mermaid`). It arrives late, and a multi-document build leaves a mix of\nnew and stale outputs. Checking once after planning and before any rendering\nfails the whole call cleanly."
+    },
+    {
+      "heading": "Files",
+      "body": "- `quire.py` (`main` job loop, `render`)\n- `quire_mermaid.py` (`MermaidRenderer.__init__`, `fence_locations`)\n- `test_quire.py` or `test_render.py`\n- `CHANGELOG.md`"
+    },
+    {
+      "heading": "Failing tests",
+      "body": "1. When any planned job has a Mermaid block and the renderer is missing,\n   the call fails before any job renders, and nothing is written.\n2. The error is the same install hint as today and names the first source\n   file that needs it.\n3. With `--no-mermaid`, or with no Mermaid blocks, no check runs and a\n   missing renderer is not an error."
+    },
+    {
+      "heading": "Implement",
+      "body": "Split the availability test out of `MermaidRenderer.__init__`\n(`quire_mermaid.py:206-211`: `node` on PATH and\n`node_modules/@mermaid-js/mermaid-cli/package.json`) into a function that\nboth the constructor and a preflight call. In `main`, after the duplicate\noutput check and before the render loop, run it once if any job without\n`no_mermaid` contains a Mermaid fence (in its Markdown or included\nsources). Detect fences from the source text so the check needs no Pandoc\nrun. A false positive only costs the hint. Do not start Node or the\nbrowser in the preflight."
+    },
+    {
+      "heading": "Check",
+      "body": "- `python3 test_quire.py`\n- Real run with two targets, the second containing a Mermaid block, with the\n  renderer hidden: confirm that neither output is written and report the\n  message."
+    },
+    {
+      "heading": "Git",
+      "body": "No commit unless the owner asks."
+    }
+  ],
+  "notes": []
+}
