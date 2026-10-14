@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Turn `\newpage`, `\pagebreak`, and `\clearpage` into page breaks, as a block or inside a paragraph. Pandoc treats them as raw TeX and the HTML writer dropped them, so a page break written for LaTeX silently vanished. An optional `[n]` or `{}` suffix is accepted. Other raw TeX is still dropped, now with one warning per build naming the source file and a dropped command, and paragraphs left empty by that are removed.
+
 ## 1.1.1
 
 - Name the config when its registered profile directory no longer has a `profile.toml`, and suggest `quire install <profile dir> --name NAME` to re-register it. Previously the error showed only the missing path.

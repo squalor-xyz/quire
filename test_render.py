@@ -97,6 +97,77 @@ class RenderTests(unittest.TestCase):
         self.assertEqual(errors.getvalue(), "")
         self.assertIn("Content-Security-Policy", job.output.read_text())
 
+    def build_html(self, blocks, meta=None, head="", **kwargs):
+        """Run render with a stubbed Pandoc; return (HTML, AST sent to the writer, stderr)."""
+        job = self.job(format="html", **kwargs)
+        ast = {"meta": meta or {}, "blocks": blocks, "pandoc-api-version": [1, 23]}
+        page = f"<html><head>{head}</head><body>x</body></html>"
+        results = [subprocess.CompletedProcess([], 0, json.dumps(ast), ""),
+                   subprocess.CompletedProcess([], 0, page, "")]
+        errors = io.StringIO()
+        with patch("quire.which_pandoc", return_value="pandoc"), \
+                patch("quire.subprocess.run", side_effect=results) as run, \
+                redirect_stdout(io.StringIO()), redirect_stderr(errors):
+            quire.render(job)
+        sent = json.loads(run.call_args_list[1].kwargs["input"])
+        return job.output.read_text(), sent["blocks"], errors.getvalue(), sent["meta"]
+
+    def test_page_break_tex_blocks_become_html(self):
+        blocks = [{"t": "RawBlock", "c": ["tex", command]}
+                  for command in ("\\newpage", "\\pagebreak", "\\clearpage")]
+        html, sent, errors, _ = self.build_html(blocks)
+        for block in sent:
+            self.assertEqual(block, {"t": "RawBlock", "c": ["html", '<div class="quire-page-break"></div>']})
+        self.assertEqual(errors, "")
+
+    def test_page_break_tex_inline_becomes_html(self):
+        inline = {"t": "RawInline", "c": ["tex", "\\pagebreak "]}
+        html, sent, errors, _ = self.build_html(
+            [{"t": "Para", "c": [{"t": "Str", "c": "a"}, inline, {"t": "Str", "c": "b"}]}])
+        self.assertEqual(sent[0]["c"][1], {"t": "RawInline", "c": [
+            "html", '<span class="quire-page-break"></span>']})
+        self.assertEqual(errors, "")
+
+    def test_other_raw_tex_is_dropped_with_one_warning(self):
+        blocks = [{"t": "RawBlock", "c": ["latex", "\\vspace{1cm}"]},
+                  {"t": "Para", "c": [{"t": "RawInline", "c": ["tex", "\\textbf{x}"]}]},
+                  {"t": "RawBlock", "c": ["html", "<hr>"]}]
+        html, sent, errors, _ = self.build_html(blocks)
+        self.assertEqual(sent, [blocks[2]])
+        self.assertEqual(errors.count("warning"), 1)
+        self.assertIn(str(self.source), errors)
+        self.assertIn("\\vspace", errors)
+
+    def test_raw_tex_in_metadata_is_dropped_with_warning(self):
+        raw = {"t": "RawInline", "c": ["tex", "\\usepackage{x}"]}
+        meta = {"title": {"t": "MetaInlines", "c": [{"t": "Str", "c": "T"}, raw]}}
+        html, sent, errors, sent_meta = self.build_html([], meta=meta)
+        self.assertEqual(sent_meta["title"]["c"], [{"t": "Str", "c": "T"}])
+        self.assertIn("\\usepackage", errors)
+
+    def test_page_break_suffixes_are_accepted(self):
+        blocks = [{"t": "RawBlock", "c": ["tex", command]}
+                  for command in ("\\pagebreak[4]", "\\newpage{}", "\\clearpage[]{}")]
+        html, sent, errors, _ = self.build_html(blocks)
+        self.assertEqual({block["c"][0] for block in sent}, {"html"})
+        self.assertEqual(errors, "")
+
+    def test_paragraphs_emptied_by_dropped_tex_are_removed(self):
+        raw = {"t": "RawInline", "c": ["tex", "\\textbf{x}"]}
+        blocks = [{"t": "Para", "c": [raw]}, {"t": "Plain", "c": [raw]},
+                  {"t": "BulletList", "c": [[{"t": "Plain", "c": [raw]}]]}]
+        html, sent, errors, _ = self.build_html(blocks)
+        self.assertEqual(sent, [{"t": "BulletList", "c": [[]]}])
+
+    def test_page_break_rule_precedes_stylesheets(self):
+        html, sent, errors, _ = self.build_html([], head="<style>p{}</style>")
+        self.assertLess(html.index(".quire-page-break {"), html.index("p{}"))
+
+    def test_page_break_rule_is_present_without_css(self):
+        html, sent, errors, _ = self.build_html([], no_css=True)
+        self.assertIn(".quire-page-break { break-after:page; page-break-after:always; }", html)
+        self.assertIn("span.quire-page-break { display:block;", html)
+
     def test_worker_interpreter_matches_weasyprint(self):
         bin_dir = self.root / "bin"
         bin_dir.mkdir()

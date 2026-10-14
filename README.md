@@ -118,6 +118,19 @@ contents, and renderer/browser versions determine the cache key. Repeatability
 assumes the same pinned runtime and fonts; clear this cache after changing system
 fonts. Deleting the cache is safe; the next build recreates it.
 
+## Page breaks
+
+`\newpage`, `\pagebreak`, and `\clearpage` (with an optional `[n]` or `{}`
+suffix) on their own line, or inside a paragraph, start a new page. They work
+between blocks and in lists and blockquotes, but not inside table cells. Quire
+writes them as `quire-page-break` elements and puts the break rule first in the
+document head, so it applies with `--no-css` and a profile stylesheet can
+override it, for example to show a marker in HTML.
+
+Quire drops all other raw TeX from the output and prints one warning per build
+naming a dropped command. The warning names the source document, even when the
+TeX came from a profile include.
+
 ## Use a profile
 
 A profile is a separate directory containing `profile.toml` and its assets.

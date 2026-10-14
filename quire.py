@@ -19,6 +19,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import shlex
 import shutil
 import subprocess
@@ -670,6 +671,39 @@ def _run(cmd: list[str], job: Job, *, input: str | None = None,
     return result.stdout
 
 
+PAGE_BREAK_TEX = re.compile(r"\\(?:newpage|pagebreak|clearpage)(?:\[[^\]]*\])?(?:\{\})?")
+PAGE_BREAK_CSS = (".quire-page-break { break-after:page; page-break-after:always; } "
+                  "span.quire-page-break { display:block; height:0; }")
+
+
+def convert_raw_tex(node, dropped: list[str]) -> None:
+    """Turn page-break TeX into raw HTML and drop other raw TeX, in place.
+
+    The HTML writer discards raw TeX, so a page break written for LaTeX would
+    otherwise vanish. Dropped commands are appended to `dropped`.
+    """
+    if isinstance(node, list):
+        for child in list(node):
+            if (isinstance(child, dict) and child.get("t") in ("RawBlock", "RawInline")
+                    and child["c"][0] in ("tex", "latex")):
+                text = child["c"][1]
+                if PAGE_BREAK_TEX.fullmatch(text.strip()):
+                    tag = "div" if child["t"] == "RawBlock" else "span"
+                    child["c"] = ["html", f'<{tag} class="quire-page-break"></{tag}>']
+                else:
+                    command = re.search(r"\\[A-Za-z]+|\\.", text)
+                    dropped.append(command.group(0) if command else text.strip())
+                    node.remove(child)
+            else:
+                convert_raw_tex(child, dropped)
+                if (isinstance(child, dict) and child.get("t") in ("Para", "Plain")
+                        and child["c"] == []):
+                    node.remove(child)
+    elif isinstance(node, dict):
+        for child in node.values():
+            convert_raw_tex(child, dropped)
+
+
 def render(job: Job) -> None:
     from quire_html import Resources
     from quire_mermaid import code_blocks, render_blocks, source_locations
@@ -696,6 +730,12 @@ def render(job: Job) -> None:
 
     ast = parse(job.markdown)
     locations = source_locations(job, parse) if not job.no_mermaid and any(code_blocks(ast)) else None
+    dropped: list[str] = []
+    convert_raw_tex(ast["blocks"], dropped)
+    convert_raw_tex(ast.get("meta", {}), dropped)
+    if dropped:
+        print(f"warning: {job.source}: dropped raw TeX (including {dropped[0]}); "
+              "only \\newpage, \\pagebreak, and \\clearpage are converted", file=sys.stderr)
     has_diagrams = render_blocks(ast, job, "\n".join(css), locations=locations)
     cmd = [pandoc, "-f", "json", "-t", "html5", "--standalone", "--metadata", "lang=en"]
     if "title" not in ast.get("meta", {}) and "pagetitle" not in ast.get("meta", {}):
@@ -707,6 +747,8 @@ def render(job: Job) -> None:
         cmd.extend(["--metadata", f"{key}={value}"])
     document = _run(cmd, job, input=json.dumps(ast))
     document = resources.document(document)
+    # First in the head, so a stylesheet can override the rule.
+    document = document.replace("<head>", f"<head>\n<style>{PAGE_BREAK_CSS}</style>", 1)
     if has_diagrams:
         family = "".join(char for char in job.mermaid.get("fontFamily", "") if char not in "<>{}")
         family = family or "Helvetica, Arial, sans-serif"

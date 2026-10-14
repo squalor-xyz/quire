@@ -37,3 +37,5 @@
 {"when": "2026-10-14T15:58:24Z", "item": "s09", "action": "move", "from": "11", "to": "11", "note": ""}
 {"when": "2026-10-14T15:58:25Z", "item": "s12", "action": "move", "from": "12", "to": "12", "note": ""}
 {"when": "2026-10-14T15:58:32Z", "item": "s09", "action": "set", "from": "", "to": "", "note": "urgency 2→1"}
+{"when": "2026-10-14T16:03:12Z", "item": "s10", "action": "status", "from": "open", "to": "started", "note": "", "by": "Jon Robbins"}
+{"when": "2026-10-14T16:24:17Z", "item": "s10", "action": "status", "from": "started", "to": "done", "note": "convert_raw_tex in render turns \\newpage/\\pagebreak/\\clearpage (optional [n]/{} suffix) RawBlock/RawInline tex|latex into div/span.quire-page-break; other raw TeX is dropped with one stderr warning (blocks walked before meta); emptied Para/Plain removed. Page-break style inserted right after <head> on every build (works with --no-css, profiles can override). 61->69 tests, mutation-checked; Opus review + gate PASS. Real build: 3 paras with \\newpage + inline \\pagebreak = 4 pages. Known limits (README): no breaks in table cells; multi-command raw blocks are dropped with a warning.", "by": "Jon Robbins"}
