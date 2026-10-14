@@ -1,0 +1,41 @@
+{
+  "id": "s16",
+  "title": "Let a caller prefer a named profile without requiring it",
+  "lead": [
+    "A repository render script that wants its brand when it is available has\ntwo options today. `--config NAME` fails on any machine where NAME is not\nregistered. Leaving it out loses the brand on machines where it is\nregistered but not the user's `default`. Neither lets a shared script name\na profile without making every machine register it."
+  ],
+  "depends_note": null,
+  "findings_note": "",
+  "size": "S",
+  "flags": [],
+  "trees_note": "core",
+  "trees_plural": false,
+  "boundary": "**Not in this slice:** finding or downloading profiles; a repository-local\nquire config file; changing `--config`, which stays strict.",
+  "sections": [
+    {
+      "heading": "Why",
+      "body": "Scripts in other repositories pin a profile name so documents render the\nsame for everyone. A collaborator without that profile should still get a\nplain PDF and a warning, not a failed build."
+    },
+    {
+      "heading": "Files",
+      "body": "- `quire.py` (`_parser`, `resolve_profile_arg`, `main`)\n- `test_quire.py`\n- `README.md`, `AGENTS.md` (selection order), `CHANGELOG.md`"
+    },
+    {
+      "heading": "Failing tests",
+      "body": "1. `--prefer-config NAME` with NAME registered selects that profile, as\n   `--config NAME` does.\n2. With NAME unregistered, quire prints one warning to stderr (naming the\n   config file and the `quire install` hint from s14) and continues down the\n   normal selection order: `QUIRE_CONFIG`, `QUIRE_PROFILE`, the user\n   `default`, then plain output.\n3. `--prefer-config` with `--config`, `--profile` or `--no-config` follows\n   the existing precedence; `--prefer-config` with `--config` is a usage\n   error.\n4. An unregistered preferred name with `--letterhead` still fails, and the\n   error says the preferred profile was not registered.\n5. A registered name whose profile directory is missing still fails, as\n   `_check_config_profile` does today. Only an unregistered name falls back."
+    },
+    {
+      "heading": "Implement",
+      "body": "Owner decision first: flag name (`--prefer-config` proposed) and whether a\n`QUIRE_PREFER_CONFIG` environment variable is also wanted. Add the flag in\n`_parser` and handle it in `resolve_profile_arg` at the `--config` slot:\nregistered returns the path, unregistered warns and falls through. Reuse\nthe s14 message for the warning text. Update the selection order in the\nREADME and the \"Behavior to preserve\" list in `AGENTS.md`."
+    },
+    {
+      "heading": "Check",
+      "body": "- `python3 test_quire.py`\n- Real build with `XDG_CONFIG_HOME` pointed at an empty temporary directory\n  inside the checkout: `--prefer-config acme` writes a plain PDF and warns.\n  Report whether the PDF was checked."
+    },
+    {
+      "heading": "Git",
+      "body": "No commit unless the owner asks."
+    }
+  ],
+  "notes": []
+}

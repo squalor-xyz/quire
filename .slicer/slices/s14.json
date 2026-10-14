@@ -1,0 +1,41 @@
+{
+  "id": "s14",
+  "title": "Say where profiles are looked up and how to register one when a --config name is unknown",
+  "lead": [
+    "`quire --config acme doc.md` on a machine with no user config fails with\n`error: unknown config 'acme' (known: (none))`. The message doesn't name\nthe config file it read (`$XDG_CONFIG_HOME/quire/config.toml`, falling back\nto `~/.config/quire/config.toml`), say whether that file exists, or mention\n`quire install`."
+  ],
+  "depends_note": null,
+  "findings_note": "",
+  "size": "S",
+  "flags": [],
+  "trees_note": "core",
+  "trees_plural": false,
+  "boundary": "**Not in this slice:** a doctor or preflight command; finding profiles\nautomatically; changing how the config is stored.",
+  "sections": [
+    {
+      "heading": "Why",
+      "body": "Repository render scripts call `quire --config <name>` and assume the\nprofile is registered on every machine. On a fresh install the error gives\nno next step, and the user has to read `quire.py` to find where profiles\nare looked up. A message that names the file and the fix makes the problem\nobvious."
+    },
+    {
+      "heading": "Files",
+      "body": "- `quire.py` (`profile_from_name`, `load_user_config`)\n- `test_quire.py`\n- `CHANGELOG.md`"
+    },
+    {
+      "heading": "Failing tests",
+      "body": "1. `unknown_config_names_config_path`: the error includes the resolved\n   config path, and says whether that file is missing.\n2. `unknown_config_suggests_install`: the error includes\n   `quire install <profile-dir> --name <name>`, filled in with the requested\n   name.\n3. `unknown_config_lists_known_names`: when profiles exist, the error still\n   lists them (this behavior is kept)."
+    },
+    {
+      "heading": "Implement",
+      "body": "In `profile_from_name` (`quire.py:782-787`), build the message from\n`cfg.path`, which `load_user_config` already sets to the resolved path even\nwhen the file is missing. Keep the known-names list. Add the path with a\n\"(missing)\" note when the file does not exist, and the registration hint\n`quire install <profile-dir> --name <name>` (the command `cmd_install` in\n`install.py:361-367` provides). Keep the message on stderr through\n`SystemExit` as today."
+    },
+    {
+      "heading": "Check",
+      "body": "- `python3 test_quire.py`\n- Run `quire --config <unregistered>` with `XDG_CONFIG_HOME` pointed at an\n  empty temporary directory inside the checkout, and report the message."
+    },
+    {
+      "heading": "Git",
+      "body": "No commit unless the owner asks."
+    }
+  ],
+  "notes": []
+}

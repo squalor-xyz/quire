@@ -37,3 +37,8 @@
 {"when": "2026-10-14T15:58:24Z", "item": "s09", "action": "move", "from": "11", "to": "11", "note": ""}
 {"when": "2026-10-14T15:58:25Z", "item": "s12", "action": "move", "from": "12", "to": "12", "note": ""}
 {"when": "2026-10-14T15:58:32Z", "item": "s09", "action": "set", "from": "", "to": "", "note": "urgency 2→1"}
+{"when": "2026-10-14T16:25:17Z", "item": "s14", "action": "add", "from": "", "to": "open", "note": "Say where profiles are looked up and how to register one when a --config name is unknown"}
+{"when": "2026-10-14T16:26:22Z", "item": "s15", "action": "add", "from": "", "to": "open", "note": "Check for the Mermaid renderer before building starts"}
+{"when": "2026-10-14T16:28:20Z", "item": "s14", "action": "edit", "from": "", "to": "", "note": "lead"}
+{"when": "2026-10-14T16:28:20Z", "item": "s14", "action": "edit", "from": "", "to": "", "note": "Why"}
+{"when": "2026-10-14T16:28:34Z", "item": "s16", "action": "add", "from": "", "to": "open", "note": "Let a caller prefer a named profile without requiring it"}
