@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Add a repeatable `--add-css PATH` option that appends stylesheets after the selected stylesheets (profile variant, `plain.css`, `plain-confidential.css`, or `--css`), so a one-off adjustment no longer means copying the profile stylesheet. `--no-css` still passes none. Unless `--no-css` is set, a missing added stylesheet is an error before any output is written. Overriding a profile's named or pseudo-class `@page` rules (`@page letterhead`, `@page :first`) needs `!important`, and works only if the profile rule is not itself `!important`.
+
 ## 1.1.1
 
 - Name the config when its registered profile directory no longer has a `profile.toml`, and suggest `quire install <profile dir> --name NAME` to re-register it. Previously the error showed only the missing path.

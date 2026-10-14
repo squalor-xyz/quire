@@ -525,6 +525,7 @@ def plan_job(
     resource_path: Path | None = None,
     css: list[Path] | None = None,
     no_css: bool = False,
+    add_css: list[Path] | None = None,
     include_before: list[Path] | None = None,
     cwd: Path | None = None,
     format: str | None = None,
@@ -581,22 +582,25 @@ def plan_job(
     if out.resolve() == source:
         raise SystemExit(f"error: output would overwrite the source: {source}")
 
+    def checked(raw: Path) -> Path:
+        path = raw if raw.is_absolute() else (work / raw)
+        path = path.resolve()
+        if not path.is_file():
+            raise SystemExit(f"error: CSS missing: {path}")
+        return path
+
     if no_css:
         css_files: list[Path] = []
     elif css:
-        css_files = []
-        for raw in css:
-            path = raw if raw.is_absolute() else (work / raw)
-            path = path.resolve()
-            if not path.is_file():
-                raise SystemExit(f"error: CSS missing: {path}")
-            css_files.append(path)
+        css_files = [checked(raw) for raw in css]
     elif variant is not None and variant.css:
         css_files = list(variant.css)
     else:
         if not PLAIN_CSS.is_file():
             raise SystemExit(f"error: CSS missing: {PLAIN_CSS}")
         css_files = [PLAIN_CSS]
+    if not no_css:
+        css_files.extend(checked(raw) for raw in add_css or [])
 
     text = source.read_text(encoding="utf-8")
     prepared = prepare_markdown(text, variant, extra)
@@ -879,6 +883,13 @@ def _parser(
         help="Stylesheet. Repeatable. Replaces the profile CSS and plain.css",
     )
     parser.add_argument(
+        "--add-css",
+        action="append",
+        type=Path,
+        default=None,
+        help="Stylesheet appended after the selected CSS. Repeatable",
+    )
+    parser.add_argument(
         "--no-css",
         action="store_true",
         help="Pass no stylesheet to pandoc",
@@ -1005,6 +1016,7 @@ def main(
             resource_path=args.resource_path,
             css=args.css,
             no_css=args.no_css,
+            add_css=args.add_css,
             include_before=args.include_before,
             format=args.format,
             no_mermaid=args.no_mermaid,

@@ -14,25 +14,25 @@
 
 - Pandoc option passthrough and watch mode are out of scope for this roadmap. Windows support is deferred (see its later item), not excluded.
 
-13 items · — 5 · done 7 · later 1
+13 items · — 4 · done 8 · later 1
 
 | # | Slice | Title | Size | Effort | Trees | Findings | Status |
 |---|---|---|---|---|---|---|---|
 | 1 | [s10](slices/s10.md) | Turn \newpage and \pagebreak into page breaks | S | 1 | core | G5 | — |
-| 2 | [s11](slices/s11.md) | Append stylesheets after the selected CSS | S | 1 | core | G5 | — |
-| 3 | [s08](slices/s08.md) | Render plain-text input verbatim | M | 2 | core | G5 | — |
-| 4 | [s09](slices/s09.md) | Fail when a profile's required font is missing | M | 2 | core | G5 | — |
-| 5 | [s12](slices/s12.md) | Render TeX math without a browser or network | L | 3 | core, install | G5 | — |
-| 6 | s13 | Support Windows | L | 3 | core, install | G5 | later |
+| 2 | [s08](slices/s08.md) | Render plain-text input verbatim | M | 2 | core | G5 | — |
+| 3 | [s09](slices/s09.md) | Fail when a profile's required font is missing | M | 2 | core | G5 | — |
+| 4 | [s12](slices/s12.md) | Render TeX math without a browser or network | L | 3 | core, install | G5 | — |
+| 5 | s13 | Support Windows | L | 3 | core, install | G5 | later |
 
 ---
 
 | # | Slice | Title | Size | Effort | Trees | Findings | Status |
 |---|---|---|---|---|---|---|---|
-| 7 | [s01](slices/s01.md) | Guard against overwriting the source | S | 1 | core | G1 | done |
-| 8 | [s02](slices/s02.md) | Pick the WeasyPrint worker interpreter correctly | M | 2 | core | G2 | done |
-| 9 | [s03](slices/s03.md) | Reject install.py --python without --skip-venv | S | 1 | install | G2 | done |
-| 10 | [s04](slices/s04.md) | Detect YAML front matter like Pandoc | M | 2 | core | G1 | done |
-| 11 | [s05](slices/s05.md) | Add quire default to set or clear the default profile | M | 2 | install | G3 | done |
-| 12 | [s06](slices/s06.md) | Add quire remove to unregister a profile | M | 2 | install | G3 | done |
-| 13 | [s07](slices/s07.md) | Build several documents in one call | M | 2 | core | G4 | done |
+| 6 | [s01](slices/s01.md) | Guard against overwriting the source | S | 1 | core | G1 | done |
+| 7 | [s02](slices/s02.md) | Pick the WeasyPrint worker interpreter correctly | M | 2 | core | G2 | done |
+| 8 | [s03](slices/s03.md) | Reject install.py --python without --skip-venv | S | 1 | install | G2 | done |
+| 9 | [s04](slices/s04.md) | Detect YAML front matter like Pandoc | M | 2 | core | G1 | done |
+| 10 | [s05](slices/s05.md) | Add quire default to set or clear the default profile | M | 2 | install | G3 | done |
+| 11 | [s06](slices/s06.md) | Add quire remove to unregister a profile | M | 2 | install | G3 | done |
+| 12 | [s07](slices/s07.md) | Build several documents in one call | M | 2 | core | G4 | done |
+| 13 | [s11](slices/s11.md) | Append stylesheets after the selected CSS | S | 1 | core | G5 | done |

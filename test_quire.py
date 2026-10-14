@@ -366,6 +366,83 @@ Hello
         self.assertEqual(job.css, [])
         self.assertIn("letterhead-block", job.markdown)
 
+    def test_add_css_appends_after_selected_stylesheets(self) -> None:
+        first = self.root / "first.css"
+        second = self.root / "second.css"
+        custom = self.root / "custom.css"
+        for path in (first, second, custom):
+            path.write_text("body { color: black; }", encoding="utf-8")
+        source = self.profile_dir / "sample.md"
+        extra = [Path("first.css"), Path("second.css")]
+        plain = quire.plan_job(
+            str(source), profile=None, add_css=extra, cwd=self.root
+        )
+        self.assertEqual(plain.css, [quire.PLAIN_CSS, first, second])
+        base = quire.plan_job("letter-sample", profile=self.profile, cwd=self.root)
+        added = quire.plan_job(
+            "letter-sample", profile=self.profile, add_css=extra, cwd=self.root
+        )
+        self.assertEqual(added.css, base.css + [first, second])
+        reordered = quire.plan_job(
+            "letter-sample", profile=self.profile,
+            add_css=[Path("second.css"), Path("first.css")], cwd=self.root,
+        )
+        self.assertEqual(reordered.css, base.css + [second, first])
+        replaced = quire.plan_job(
+            str(source), profile=self.profile, css=[Path("custom.css")],
+            add_css=extra, cwd=self.root,
+        )
+        self.assertEqual(replaced.css, [custom, first, second])
+
+    def test_add_css_follows_confidential_stylesheet(self) -> None:
+        extra = self.root / "extra.css"
+        extra.write_text("body { color: black; }", encoding="utf-8")
+        source = self.profile_dir / "sample.md"
+        job = quire.plan_job(
+            str(source), profile=None, confidential=True,
+            add_css=[Path("extra.css")], cwd=self.root,
+        )
+        self.assertEqual(job.css, [quire.PLAIN_CONFIDENTIAL_CSS, extra])
+
+    def test_main_passes_add_css_to_the_planned_job(self) -> None:
+        extra = self.root / "extra.css"
+        extra.write_text("body { color: black; }", encoding="utf-8")
+        source = self.profile_dir / "sample.md"
+        cfg = quire.UserConfig(default="", profiles={})
+        argv = ["--no-config", str(source), "--add-css", str(extra)]
+        with patch("quire.render") as render:
+            quire.main(argv, user_config=cfg)
+        (job,) = [call.args[0] for call in render.call_args_list]
+        self.assertEqual(job.css, [quire.PLAIN_CSS, extra])
+        with patch("quire.render") as render:
+            with self.assertRaisesRegex(SystemExit, "CSS missing"):
+                quire.main(
+                    ["--no-config", str(source), "--add-css", str(self.root / "gone.css")],
+                    user_config=cfg,
+                )
+        render.assert_not_called()
+
+    def test_no_css_drops_added_stylesheets(self) -> None:
+        job = quire.plan_job(
+            "letter-sample", profile=self.profile, no_css=True,
+            add_css=[Path("missing.css")], cwd=self.root,
+        )
+        self.assertEqual(job.css, [])
+
+    def test_missing_added_css_is_an_error(self) -> None:
+        (self.root / "ok.css").write_text("", encoding="utf-8")
+        with self.assertRaisesRegex(SystemExit, "CSS missing"):
+            quire.plan_job(
+                "letter-sample", profile=self.profile,
+                add_css=[Path("ok.css"), Path("missing.css")], cwd=self.root,
+            )
+
+    def test_add_css_option_is_repeatable(self) -> None:
+        args = quire._parser(None, "", "quire").parse_args(
+            ["a.md", "--add-css", "x.css", "--add-css", "y.css"]
+        )
+        self.assertEqual(args.add_css, [Path("x.css"), Path("y.css")])
+
     def test_explicit_output_overrides_builtin_and_variant_suffix(self) -> None:
         for target in ("letter-sample", str(self.profile_dir / "sample.md")):
             with self.subTest(target=target):
