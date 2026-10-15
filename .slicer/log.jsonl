@@ -67,3 +67,11 @@
 {"when": "2026-10-15T16:43:02Z", "item": "s17", "action": "status", "from": "open", "to": "started", "note": "", "by": "Jon Robbins"}
 {"when": "2026-10-15T17:01:33Z", "item": "s17", "action": "note", "from": "", "to": "", "note": "Rejected empty --config name: resolve_profile_arg now raises", "by": "Jon Robbins"}
 {"when": "2026-10-15T17:01:33Z", "item": "s17", "action": "status", "from": "started", "to": "done", "note": "Reject an empty --config name instead of ignoring it; 134 tests pass, reviewer VERDICT: PASS, real PDF render not checked", "by": "Jon Robbins"}
+{"when": "2026-10-15T17:21:49Z", "item": "s17", "action": "note", "from": "", "to": "", "note": "--config \"\" is silently ignored when --profile, --no-config ", "by": "Jon Robbins"}
+{"when": "2026-10-15T17:21:49Z", "item": "s17", "action": "note", "from": "", "to": "", "note": "--config \"   \" gives \"unknown config '   '\" with an odd inst", "by": "Jon Robbins"}
+{"when": "2026-10-15T17:21:49Z", "item": "s17", "action": "note", "from": "", "to": "", "note": "--config \"\" --help prints the empty-name error rather than h", "by": "Jon Robbins"}
+{"when": "2026-10-15T17:21:49Z", "item": "s17", "action": "note", "from": "", "to": "", "note": "Repo already fails black --check on quire.py and test_quire.", "by": "Jon Robbins"}
+{"when": "2026-10-15T17:25:31Z", "item": "s18", "action": "add", "from": "", "to": "open", "note": "Treat a whitespace-only --config name as empty"}
+{"when": "2026-10-15T17:25:31Z", "item": "s19", "action": "add", "from": "", "to": "open", "note": "Bring quire.py and test_quire.py to black and flake8 clean"}
+{"when": "2026-10-15T17:25:36Z", "item": "s18", "action": "note", "from": "", "to": "", "note": "Found in the s17 relay. --config \"   \" fails with \"unknown c", "by": "Jon Robbins"}
+{"when": "2026-10-15T17:25:36Z", "item": "s19", "action": "note", "from": "", "to": "", "note": "Found in the s17 relay. At da427ee, black --check fails on q", "by": "Jon Robbins"}

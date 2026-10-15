@@ -2,7 +2,7 @@
   "version": 9,
   "id_prefix": "s",
   "id_width": 2,
-  "next_id": 18,
+  "next_id": 20,
   "preamble": "",
   "passes": [],
   "items": [
@@ -595,6 +595,50 @@
           "verified_by": "",
           "verified_at": "",
           "stale_after": ""
+        },
+        {
+          "id": "87eaa438-a7bd-4fb2-8f25-2ce869b3679a",
+          "kind": "",
+          "text": "**2026-10-15** — --config \"\" is silently ignored when --profile, --no-config or a pinned default_profile wins (matches documented order and s16).",
+          "created_at": "2026-10-15T17:21:49Z",
+          "attempt": 1,
+          "by": "Jon Robbins",
+          "verified_by": "",
+          "verified_at": "",
+          "stale_after": ""
+        },
+        {
+          "id": "215f9f15-c88d-4b06-bce8-d9ba21c26054",
+          "kind": "",
+          "text": "**2026-10-15** — --config \"   \" gives \"unknown config '   '\" with an odd install hint; consider stripping or treating whitespace-only as empty.",
+          "created_at": "2026-10-15T17:21:49Z",
+          "attempt": 1,
+          "by": "Jon Robbins",
+          "verified_by": "",
+          "verified_at": "",
+          "stale_after": ""
+        },
+        {
+          "id": "2eb65d39-b00c-41a4-8ca4-d91537279302",
+          "kind": "",
+          "text": "**2026-10-15** — --config \"\" --help prints the empty-name error rather than help (same as --prefer-config \"\" since s16).",
+          "created_at": "2026-10-15T17:21:49Z",
+          "attempt": 1,
+          "by": "Jon Robbins",
+          "verified_by": "",
+          "verified_at": "",
+          "stale_after": ""
+        },
+        {
+          "id": "647eb7c3-f7c4-45e4-94d0-01b8209c66eb",
+          "kind": "",
+          "text": "**2026-10-15** — Repo already fails black --check on quire.py and test_quire.py at HEAD (about 89 flake8 issues in quire.py, 193 in test_quire.py); s17 tests add 5 E501 in the existing style.",
+          "created_at": "2026-10-15T17:21:49Z",
+          "attempt": 1,
+          "by": "Jon Robbins",
+          "verified_by": "",
+          "verified_at": "",
+          "stale_after": ""
         }
       ],
       "claim": null,
@@ -617,6 +661,90 @@
         "urgency": 1,
         "effort": 1,
         "attempts": 1
+      }
+    },
+    {
+      "id": "s18",
+      "title": "Treat a whitespace-only --config name as empty",
+      "short_title": "Treat a whitespace-only --config name as empty",
+      "status": "open",
+      "has_slice": false,
+      "depends_on": [],
+      "note_records": [
+        {
+          "id": "b03a15d2-5089-4248-a845-770345ba96ac",
+          "kind": "",
+          "text": "**2026-10-15** — Found in the s17 relay. --config \"   \" fails with \"unknown config '   '\" and an install hint that makes no sense for a blank name. Since s17, --config \"\" fails with 'error: config name is empty'. Decide whether a whitespace-only name should strip to empty and fail with that message, and keep --prefer-config consistent with it. Check: a test for --config \"   \" (and --prefer-config \"   \" if it changes); QUIRE_CONFIG whitespace stays treated as unset.",
+          "created_at": "2026-10-15T17:25:36Z",
+          "attempt": 0,
+          "by": "Jon Robbins",
+          "verified_by": "",
+          "verified_at": "",
+          "stale_after": ""
+        }
+      ],
+      "claim": null,
+      "fields": {
+        "size": "S",
+        "flags": [],
+        "trees": [
+          "core"
+        ],
+        "trees_literal": false,
+        "findings": "",
+        "discovered_from": "s17",
+        "parent": "",
+        "cites": [],
+        "key": "",
+        "pass": "",
+        "group": "",
+        "reason": "",
+        "importance": 2,
+        "urgency": 1,
+        "effort": 1,
+        "attempts": 0
+      }
+    },
+    {
+      "id": "s19",
+      "title": "Bring quire.py and test_quire.py to black and flake8 clean",
+      "short_title": "Bring quire.py and test_quire.py to black and flake8 clean",
+      "status": "open",
+      "has_slice": false,
+      "depends_on": [],
+      "note_records": [
+        {
+          "id": "73a1710b-d5ca-43c5-99d5-5d9595ddb440",
+          "kind": "",
+          "text": "**2026-10-15** — Found in the s17 relay. At da427ee, black --check fails on quire.py and test_quire.py, and flake8 reports about 89 issues in quire.py and 193 in test_quire.py (mostly E501 in the existing style). s17 added 5 more E501. Global rules call for black formatting and flake8-clean CI. Do it as a format-only change with no behavior edits, so review is mechanical. Check: black --check and flake8 clean on both files; python3 test_quire.py unchanged.",
+          "created_at": "2026-10-15T17:25:36Z",
+          "attempt": 0,
+          "by": "Jon Robbins",
+          "verified_by": "",
+          "verified_at": "",
+          "stale_after": ""
+        }
+      ],
+      "claim": null,
+      "fields": {
+        "size": "M",
+        "flags": [],
+        "trees": [
+          "core"
+        ],
+        "trees_literal": false,
+        "findings": "",
+        "discovered_from": "s17",
+        "parent": "",
+        "cites": [],
+        "key": "",
+        "pass": "",
+        "group": "",
+        "reason": "",
+        "importance": 2,
+        "urgency": 1,
+        "effort": 2,
+        "attempts": 0
       }
     }
   ],
