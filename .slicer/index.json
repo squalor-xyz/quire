@@ -316,10 +316,22 @@
       "id": "s09",
       "title": "Fail when a profile's required font is missing",
       "short_title": "Fail when a profile's required font is missing",
-      "status": "open",
+      "status": "done",
       "has_slice": true,
       "depends_on": [],
-      "note_records": [],
+      "note_records": [
+        {
+          "id": "726ad8fa-648f-4975-b222-d0b6b247aa9d",
+          "kind": "",
+          "text": "**2026-10-15** — Profiles can declare fonts (profile and per-variant lists); PDF builds check them with fc-list --format (unescaped families, case-insensitive) once per call during planning and fail with 'profile <config> needs font \"X\", which is not installed' before anything is written, naming the config that selected the profile (directory name for path-selected or pinned profiles). Checked even under --css/--no-css; HTML skipped; missing/failed/timed-out fc-list warns once and continues. 132 tests green; gate PASS; real builds checked (hyphenated font embedded, missing font fails, HTML builds).",
+          "created_at": "2026-10-15T16:28:06Z",
+          "attempt": 1,
+          "by": "Jon Robbins",
+          "verified_by": "",
+          "verified_at": "",
+          "stale_after": ""
+        }
+      ],
       "claim": null,
       "fields": {
         "size": "M",
@@ -338,7 +350,7 @@
         "importance": 2,
         "urgency": 1,
         "effort": 2,
-        "attempts": 0
+        "attempts": 1
       }
     },
     {

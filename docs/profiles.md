@@ -228,6 +228,42 @@ not. Use running elements for those fragments, or skip the named page.
 Includes with an insertion point (`after_marker`) are prepended for `.txt`
 input, since markers inside verbatim text mean nothing.
 
+## Required fonts
+
+A profile can list the font families its stylesheets depend on, so a missing
+font stops the build instead of being replaced silently:
+
+```toml
+fonts = ["Brand Sans", "Brand Serif"]
+
+[variants.letterhead]
+fonts = ["Brand Sans"]
+```
+
+`fonts` is an optional list of family names at profile level and in a variant.
+A variant's list replaces the profile's for that variant (an empty list checks
+nothing). Names are trimmed. Before any target is built, Quire lists the installed
+families with fontconfig's `fc-list` tool and compares each name, ignoring case. A missing one fails the call, writing nothing:
+
+```text
+error: profile acme needs font "Brand Sans", which is not installed
+```
+
+The profile name is the config name that selected the profile (`--config`,
+`--prefer-config`, `QUIRE_CONFIG`, or the config default). A profile chosen by
+path (`--profile` or `QUIRE_PROFILE`) is named by its directory.
+The check runs for PDF output only: HTML does not embed system fonts, so a
+different machine decides what the reader sees. It runs once per call however
+many targets there are, and whenever a profile is selected, including with
+`--css`, `--no-css`, or `--add-css`, because the profile's Mermaid `font_family`
+and HTML fragments can still use its fonts. If `fc-list` is missing, fails, or
+times out (60 seconds), Quire warns once on stderr and builds anyway.
+
+Fonts loaded with `@font-face` need not be listed: they do not have to be
+installed. Fonts named only in a `--css` or `--add-css` file are not checked.
+Quire does not install fonts or read font stacks from CSS, so list only the
+families that must be installed.
+
 ## Resource paths
 
 The resource search roots are, in order: CLI `--resource-path`, profile
