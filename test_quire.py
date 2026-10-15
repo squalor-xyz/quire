@@ -816,6 +816,223 @@ class NamedConfigTests(unittest.TestCase):
                 quire.main(["--config", "acme", "x.md"])
             self.assertIn(f"{tmp}/quire/config.toml (missing)", str(caught.exception))
 
+    def _usable(self, root: Path, dirname: str) -> Path:
+        """A profile that loads: one default variant with a stylesheet."""
+        profile = self._profile(root, dirname)
+        (profile / "style.css").write_text("body { color: black; }", encoding="utf-8")
+        (profile / "profile.toml").write_text(
+            '[variants.default]\ncss = ["style.css"]\n', encoding="utf-8"
+        )
+        return profile
+
+    def _prefer(self, tmp: str, *, registered: bool = True, default: str = ""):
+        """A config for --prefer-config tests, a source file, and an env that selects nothing."""
+        root = Path(tmp)
+        profiles = {"acme": self._usable(root, "acme")} if registered else {}
+        if default:
+            profiles[default] = self._usable(root, default)
+        cfg = quire.UserConfig(
+            default=default, profiles=profiles, path=root / "cfg" / "config.toml"
+        )
+        source = root / "x.md"
+        source.write_text("hello\n", encoding="utf-8")
+        return cfg, source, {"QUIRE_CONFIG": "", "QUIRE_PROFILE": ""}
+
+    def _run_main(self, argv: list[str], cfg: quire.UserConfig, env: dict[str, str]):
+        """Run main without rendering; return the planned jobs and stderr text."""
+        errors = io.StringIO()
+        with patch.dict(os.environ, env), patch("quire.render") as render, \
+                redirect_stderr(errors):
+            quire.main(argv, user_config=cfg)
+        return [call.args[0] for call in render.call_args_list], errors.getvalue()
+
+    def test_prefer_config_selects_a_registered_name(self) -> None:
+        with temporary_directory() as tmp:
+            cfg, source, env = self._prefer(tmp)
+            self.assertEqual(
+                quire.resolve_profile_arg(
+                    None, None, prefer_name="acme", user_config=cfg, environ={}
+                ),
+                cfg.profiles["acme"],
+            )
+            jobs, errors = self._run_main(["--prefer-config", "acme", str(source)], cfg, env)
+        self.assertEqual(errors, "")
+        self.assertEqual(jobs[0].css, [cfg.profiles["acme"] / "style.css"])
+
+    def test_prefer_config_unregistered_warns_once_and_goes_plain(self) -> None:
+        with temporary_directory() as tmp:
+            cfg, source, env = self._prefer(tmp, registered=False)
+            second = Path(tmp) / "y.md"
+            second.write_text("again\n", encoding="utf-8")
+            jobs, errors = self._run_main(
+                ["--prefer-config", "acme", str(source), str(second)], cfg, env
+            )
+        self.assertEqual([job.css for job in jobs], [[quire.PLAIN_CSS]] * 2)
+        self.assertEqual(errors.count("warning:"), 1)
+        self.assertIn("'acme'", errors)
+        self.assertIn(f"config file: {cfg.path} (missing)", errors)
+        self.assertIn("quire install <profile-dir> --name acme", errors)
+
+    def test_prefer_config_unregistered_falls_down_the_selection_order(self) -> None:
+        with temporary_directory() as tmp:
+            cfg, _source, _env = self._prefer(tmp, registered=False, default="mine")
+            other = cfg.profiles["mine"]
+            pick = {"QUIRE_CONFIG": "mine", "QUIRE_PROFILE": "/elsewhere"}
+            with redirect_stderr(io.StringIO()):
+                self.assertEqual(
+                    quire.resolve_profile_arg(
+                        None, None, prefer_name="acme", user_config=cfg, environ=pick
+                    ),
+                    other,
+                )
+                self.assertEqual(
+                    quire.resolve_profile_arg(
+                        None, None, prefer_name="acme", user_config=cfg,
+                        environ={"QUIRE_PROFILE": "/elsewhere"},
+                    ),
+                    Path("/elsewhere"),
+                )
+                self.assertEqual(
+                    quire.resolve_profile_arg(
+                        None, None, prefer_name="acme", user_config=cfg, environ={}
+                    ),
+                    other,
+                )
+                cfg.default = ""
+                self.assertIsNone(
+                    quire.resolve_profile_arg(
+                        None, None, prefer_name="acme", user_config=cfg, environ={}
+                    )
+                )
+
+    def test_prefer_config_follows_profile_and_no_config_precedence(self) -> None:
+        with temporary_directory() as tmp:
+            cfg, source, env = self._prefer(tmp, registered=False)
+            profile = self._usable(Path(tmp), "direct")
+            jobs, errors = self._run_main(
+                ["--prefer-config", "acme", "--profile", str(profile), str(source)], cfg, env
+            )
+            self.assertEqual(errors, "")
+            self.assertEqual(jobs[0].css, [profile / "style.css"])
+            cfg.profiles["acme"] = self._usable(Path(tmp), "registered")
+            for argv in (["--no-config"], ["--no-config", "--prefer-config", "gone"]):
+                jobs, errors = self._run_main(
+                    ["--prefer-config", "acme", *argv, str(source)], cfg, env
+                )
+                self.assertEqual(errors, "")
+                self.assertEqual(jobs[0].css, [quire.PLAIN_CSS])
+
+    def test_prefer_config_with_config_is_a_usage_error(self) -> None:
+        with temporary_directory() as tmp:
+            cfg, source, env = self._prefer(tmp, registered=False)
+            errors = io.StringIO()
+            with patch.dict(os.environ, env), patch("quire.render") as render, \
+                    redirect_stderr(errors), self.assertRaises(SystemExit) as caught:
+                quire.main(
+                    ["--prefer-config", "acme", "--config", "acme", str(source)],
+                    user_config=cfg,
+                )
+        self.assertEqual(caught.exception.code, 2)
+        self.assertRegex(errors.getvalue(), "not allowed with argument --(prefer-)?config")
+        self.assertNotIn("unknown config", errors.getvalue())
+        render.assert_not_called()
+
+    def test_prefer_config_help_shows_exclusive_flags(self) -> None:
+        with temporary_directory() as tmp:
+            cfg, _source, env = self._prefer(tmp)
+            out = io.StringIO()
+            with patch.dict(os.environ, env), redirect_stdout(out), \
+                    self.assertRaises(SystemExit):
+                quire.main(["--help"], user_config=cfg)
+        self.assertRegex(out.getvalue(), r"\[--config CONFIG \| --prefer-config NAME\]")
+
+    def test_prefer_config_warning_waits_for_argparse(self) -> None:
+        with temporary_directory() as tmp:
+            cfg, source, env = self._prefer(tmp, registered=False)
+            for argv in (["--help"], ["--bogus", str(source)]):
+                errors = io.StringIO()
+                with patch.dict(os.environ, env), redirect_stdout(io.StringIO()), \
+                        redirect_stderr(errors), self.assertRaises(SystemExit):
+                    quire.main(["--prefer-config", "acme", *argv], user_config=cfg)
+                self.assertNotIn("warning:", errors.getvalue())
+
+    def test_prefer_config_warning_precedes_a_fallback_error(self) -> None:
+        with temporary_directory() as tmp:
+            cfg, source, env = self._prefer(tmp, registered=False)
+            env["QUIRE_CONFIG"] = "gone"
+            errors = io.StringIO()
+            with patch.dict(os.environ, env), redirect_stderr(errors), \
+                    self.assertRaisesRegex(SystemExit, "unknown config 'gone' from QUIRE_CONFIG"):
+                quire.main(["--prefer-config", "acme", str(source)], user_config=cfg)
+        self.assertEqual(errors.getvalue().count("warning: preferred config 'acme'"), 1)
+
+    def test_prefer_config_warning_precedes_a_broken_fallback_profile(self) -> None:
+        with temporary_directory() as tmp:
+            cfg, source, env = self._prefer(tmp, registered=False, default="mine")
+            (cfg.profiles["mine"] / "profile.toml").unlink()
+            errors = io.StringIO()
+            with patch.dict(os.environ, env), redirect_stderr(errors), \
+                    self.assertRaisesRegex(SystemExit, "config 'mine' points to"):
+                quire.main(["--prefer-config", "acme", str(source)], user_config=cfg)
+        self.assertEqual(errors.getvalue().count("warning: preferred config 'acme'"), 1)
+
+    def test_prefer_config_is_ignored_when_a_profile_is_pinned(self) -> None:
+        with temporary_directory() as tmp:
+            cfg, source, env = self._prefer(tmp, registered=False)
+            pinned = self._usable(Path(tmp), "pinned")
+            errors = io.StringIO()
+            with patch.dict(os.environ, env), patch("quire.render") as render, \
+                    redirect_stderr(errors):
+                quire.main(
+                    ["--prefer-config", "nope", str(source)],
+                    default_profile=pinned, user_config=cfg,
+                )
+        (job,) = [call.args[0] for call in render.call_args_list]
+        self.assertEqual(job.css, [pinned / "style.css"])
+        self.assertEqual(errors.getvalue(), "")
+
+    def test_prefer_config_empty_name_is_an_error(self) -> None:
+        with temporary_directory() as tmp:
+            cfg, source, env = self._prefer(tmp)
+            with patch.dict(os.environ, env), \
+                    self.assertRaisesRegex(SystemExit, "error: config name is empty"):
+                quire.main(["--prefer-config", "", str(source)], user_config=cfg)
+
+    def test_prefer_config_unregistered_letterhead_uses_the_fallback_profile(self) -> None:
+        with temporary_directory() as tmp:
+            cfg, source, env = self._prefer(tmp, registered=False, default="mine")
+            (cfg.profiles["mine"] / "profile.toml").write_text(
+                '[variants.default]\ncss = ["style.css"]\n'
+                '[variants.letterhead]\ncss = ["style.css"]\n',
+                encoding="utf-8",
+            )
+            via_default, _ = self._run_main(
+                ["--prefer-config", "acme", "--letterhead", str(source)], cfg, env
+            )
+            via_env, _ = self._run_main(
+                ["--prefer-config", "acme", "--letterhead", str(source)],
+                cfg, {**env, "QUIRE_CONFIG": "mine", "QUIRE_PROFILE": ""},
+            )
+        for jobs in (via_default, via_env):
+            self.assertEqual(jobs[0].css, [cfg.profiles["mine"] / "style.css"])
+
+    def test_prefer_config_unregistered_with_letterhead_fails(self) -> None:
+        with temporary_directory() as tmp:
+            cfg, source, env = self._prefer(tmp, registered=False)
+            with patch.dict(os.environ, env), redirect_stderr(io.StringIO()), \
+                    self.assertRaisesRegex(SystemExit, "preferred config 'acme' is not registered"):
+                quire.main(
+                    ["--prefer-config", "acme", "--letterhead", str(source)], user_config=cfg
+                )
+
+    def test_prefer_config_registered_with_missing_profile_toml_still_fails(self) -> None:
+        with temporary_directory() as tmp:
+            cfg, source, env = self._prefer(tmp)
+            (cfg.profiles["acme"] / "profile.toml").unlink()
+            with patch.dict(os.environ, env), \
+                    self.assertRaisesRegex(SystemExit, r"config 'acme' points to .*quire install"):
+                quire.main(["--prefer-config", "acme", str(source)], user_config=cfg)
+
     def test_rename_updates_path_and_keeps_default(self) -> None:
         with temporary_directory() as tmp:
             root = Path(tmp)

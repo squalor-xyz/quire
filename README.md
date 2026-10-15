@@ -164,6 +164,7 @@ Register it under a name, or use its path directly:
 ```sh
 quire install /path/to/profile --name acme
 quire --config acme notes.md
+quire --prefer-config acme notes.md   # Plain output and a warning if acme is not registered
 acme-pdf notes.md
 quire --profile /path/to/profile notes.md
 quire configs
