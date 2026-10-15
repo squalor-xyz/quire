@@ -999,6 +999,26 @@ class NamedConfigTests(unittest.TestCase):
                     self.assertRaisesRegex(SystemExit, "error: config name is empty"):
                 quire.main(["--prefer-config", "", str(source)], user_config=cfg)
 
+    def test_config_empty_name_is_an_error_and_does_not_fall_through(self) -> None:
+        with temporary_directory() as tmp:
+            cfg, source, env = self._prefer(tmp, default="mine")
+            selecting = {**env, "QUIRE_CONFIG": "acme", "QUIRE_PROFILE": "/elsewhere"}
+            for pick in (env, selecting):
+                with self.subTest(env=pick), patch.dict(os.environ, pick), \
+                        patch("quire.render") as render:
+                    with self.assertRaisesRegex(
+                        SystemExit, "^error: config name is empty$"
+                    ):
+                        quire.main(["--config", "", str(source)], user_config=cfg)
+                    render.assert_not_called()
+
+    def test_blank_quire_config_env_stays_unset(self) -> None:
+        with temporary_directory() as tmp:
+            cfg, source, env = self._prefer(tmp, default="mine")
+            for blank in ("", "   "):
+                jobs, _ = self._run_main([str(source)], cfg, {**env, "QUIRE_CONFIG": blank})
+                self.assertEqual(jobs[0].css, [cfg.profiles["mine"] / "style.css"])
+
     def test_prefer_config_unregistered_letterhead_uses_the_fallback_profile(self) -> None:
         with temporary_directory() as tmp:
             cfg, source, env = self._prefer(tmp, registered=False, default="mine")

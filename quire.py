@@ -1110,7 +1110,9 @@ def resolve_profile_arg(
     cfg = user_config if user_config is not None else UserConfig(default="", profiles={})
     env = os.environ if environ is None else environ
     used = selected if selected is not None else []
-    if config_name:
+    if config_name is not None:
+        if not config_name:
+            raise SystemExit("error: config name is empty")
         used.append(config_name)
         return profile_from_name(cfg, config_name)
     if prefer_name is not None:
