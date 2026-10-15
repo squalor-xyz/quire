@@ -31,25 +31,26 @@
 - G4 Batch builds: build several documents in one call.<br>
 - G5 branded-pdf parity: quire does everything branded-pdf does (verbatim text, math, page breaks, per-build overrides, loud font failures), so branded-pdf can become a thin wrapper around it.</p></div></section>
 <section><h2>Non-goals</h2><div class="prose"><p>- Pandoc option passthrough and watch mode are out of scope for this roadmap. Windows support is deferred (see its later item), not excluded.</p></div></section>
-<p class="summary">16 items · — 1 · done 14 · later 1</p>
+<p class="summary">17 items · — 2 · done 14 · later 1</p>
 <table><thead><tr><th>#</th><th>ID</th><th>Title</th><th>Size</th><th>Effort</th><th>Trees</th><th>Findings</th><th>Status</th></tr></thead><tbody>
 <tr class="open"><td>1</td><td>s12</td><td>Render TeX math without a browser or network</td><td>L</td><td>3</td><td>core, install</td><td>G5</td><td class="status">—</td></tr>
 <tr class="other"><td>2</td><td>s13</td><td>Support Windows</td><td>L</td><td>3</td><td>core, install</td><td>G5</td><td class="status">later</td></tr>
+<tr class="open"><td>3</td><td>s17</td><td>Reject an empty --config name instead of ignoring it</td><td>S</td><td>1</td><td>core</td><td>discovered from s16</td><td class="status">—</td></tr>
 </tbody></table>
 <table><thead><tr><th>#</th><th>ID</th><th>Title</th><th>Size</th><th>Effort</th><th>Trees</th><th>Findings</th><th>Status</th></tr></thead><tbody>
-<tr class="done"><td>3</td><td>s01</td><td>Guard against overwriting the source</td><td>S</td><td>1</td><td>core</td><td>G1</td><td class="status">done</td></tr>
-<tr class="done"><td>4</td><td>s02</td><td>Pick the WeasyPrint worker interpreter correctly</td><td>M</td><td>2</td><td>core</td><td>G2</td><td class="status">done</td></tr>
-<tr class="done"><td>5</td><td>s03</td><td>Reject install.py --python without --skip-venv</td><td>S</td><td>1</td><td>install</td><td>G2</td><td class="status">done</td></tr>
-<tr class="done"><td>6</td><td>s04</td><td>Detect YAML front matter like Pandoc</td><td>M</td><td>2</td><td>core</td><td>G1</td><td class="status">done</td></tr>
-<tr class="done"><td>7</td><td>s05</td><td>Add quire default to set or clear the default profile</td><td>M</td><td>2</td><td>install</td><td>G3</td><td class="status">done</td></tr>
-<tr class="done"><td>8</td><td>s06</td><td>Add quire remove to unregister a profile</td><td>M</td><td>2</td><td>install</td><td>G3</td><td class="status">done</td></tr>
-<tr class="done"><td>9</td><td>s07</td><td>Build several documents in one call</td><td>M</td><td>2</td><td>core</td><td>G4</td><td class="status">done</td></tr>
-<tr class="done"><td>10</td><td>s10</td><td>Turn \newpage and \pagebreak into page breaks</td><td>S</td><td>1</td><td>core</td><td>G5</td><td class="status">done</td></tr>
-<tr class="done"><td>11</td><td>s11</td><td>Append stylesheets after the selected CSS</td><td>S</td><td>1</td><td>core</td><td>G5</td><td class="status">done</td></tr>
-<tr class="done"><td>12</td><td>s08</td><td>Render plain-text input verbatim</td><td>M</td><td>2</td><td>core</td><td>G5</td><td class="status">done</td></tr>
-<tr class="done"><td>13</td><td>s09</td><td>Fail when a profile&#x27;s required font is missing</td><td>M</td><td>2</td><td>core</td><td>G5</td><td class="status">done</td></tr>
-<tr class="done"><td>14</td><td>s14</td><td>Say where profiles are looked up and how to register one when a --config name is unknown</td><td>S</td><td>1</td><td>core</td><td></td><td class="status">done</td></tr>
-<tr class="done"><td>15</td><td>s15</td><td>Check for the Mermaid renderer before building starts</td><td>S</td><td>1</td><td>core</td><td></td><td class="status">done</td></tr>
-<tr class="done"><td>16</td><td>s16</td><td>Let a caller prefer a named profile without requiring it</td><td>S</td><td>1</td><td>core</td><td></td><td class="status">done</td></tr>
+<tr class="done"><td>4</td><td>s01</td><td>Guard against overwriting the source</td><td>S</td><td>1</td><td>core</td><td>G1</td><td class="status">done</td></tr>
+<tr class="done"><td>5</td><td>s02</td><td>Pick the WeasyPrint worker interpreter correctly</td><td>M</td><td>2</td><td>core</td><td>G2</td><td class="status">done</td></tr>
+<tr class="done"><td>6</td><td>s03</td><td>Reject install.py --python without --skip-venv</td><td>S</td><td>1</td><td>install</td><td>G2</td><td class="status">done</td></tr>
+<tr class="done"><td>7</td><td>s04</td><td>Detect YAML front matter like Pandoc</td><td>M</td><td>2</td><td>core</td><td>G1</td><td class="status">done</td></tr>
+<tr class="done"><td>8</td><td>s05</td><td>Add quire default to set or clear the default profile</td><td>M</td><td>2</td><td>install</td><td>G3</td><td class="status">done</td></tr>
+<tr class="done"><td>9</td><td>s06</td><td>Add quire remove to unregister a profile</td><td>M</td><td>2</td><td>install</td><td>G3</td><td class="status">done</td></tr>
+<tr class="done"><td>10</td><td>s07</td><td>Build several documents in one call</td><td>M</td><td>2</td><td>core</td><td>G4</td><td class="status">done</td></tr>
+<tr class="done"><td>11</td><td>s10</td><td>Turn \newpage and \pagebreak into page breaks</td><td>S</td><td>1</td><td>core</td><td>G5</td><td class="status">done</td></tr>
+<tr class="done"><td>12</td><td>s11</td><td>Append stylesheets after the selected CSS</td><td>S</td><td>1</td><td>core</td><td>G5</td><td class="status">done</td></tr>
+<tr class="done"><td>13</td><td>s08</td><td>Render plain-text input verbatim</td><td>M</td><td>2</td><td>core</td><td>G5</td><td class="status">done</td></tr>
+<tr class="done"><td>14</td><td>s09</td><td>Fail when a profile&#x27;s required font is missing</td><td>M</td><td>2</td><td>core</td><td>G5</td><td class="status">done</td></tr>
+<tr class="done"><td>15</td><td>s14</td><td>Say where profiles are looked up and how to register one when a --config name is unknown</td><td>S</td><td>1</td><td>core</td><td></td><td class="status">done</td></tr>
+<tr class="done"><td>16</td><td>s15</td><td>Check for the Mermaid renderer before building starts</td><td>S</td><td>1</td><td>core</td><td></td><td class="status">done</td></tr>
+<tr class="done"><td>17</td><td>s16</td><td>Let a caller prefer a named profile without requiring it</td><td>S</td><td>1</td><td>core</td><td></td><td class="status">done</td></tr>
 </tbody></table>
 </body></html>

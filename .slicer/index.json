@@ -2,7 +2,7 @@
   "version": 8,
   "id_prefix": "s",
   "id_width": 2,
-  "next_id": 17,
+  "next_id": 18,
   "preamble": "",
   "passes": [],
   "items": [
@@ -548,6 +548,47 @@
         "urgency": 2,
         "effort": 1,
         "attempts": 1
+      }
+    },
+    {
+      "id": "s17",
+      "title": "Reject an empty --config name instead of ignoring it",
+      "short_title": "Reject an empty --config name instead of ignoring it",
+      "status": "open",
+      "has_slice": false,
+      "depends_on": [],
+      "note_records": [
+        {
+          "id": "384b9935-0bea-458b-bab7-7608b3357e9c",
+          "kind": "",
+          "text": "**2026-10-15** — Found in the s16 gate. resolve_profile_arg tests 'if config_name:', so --config \"\" is treated as unset: the build silently falls through to QUIRE_CONFIG, QUIRE_PROFILE, the user default, or plain output. --prefer-config \"\" now fails with 'error: config name is empty' (s16), and profile_from_name already has that message. A render script passing an empty variable to --config should fail the same way. Check: a test for --config \"\" exiting with that error; QUIRE_CONFIG='' (whitespace-stripped) stays treated as unset.",
+          "created_at": "2026-10-15T16:31:52Z",
+          "attempt": 0,
+          "by": "Jon Robbins",
+          "verified_by": "",
+          "verified_at": "",
+          "stale_after": ""
+        }
+      ],
+      "claim": null,
+      "fields": {
+        "size": "S",
+        "flags": [],
+        "trees": [
+          "core"
+        ],
+        "trees_literal": false,
+        "findings": "",
+        "discovered_from": "s16",
+        "cites": [],
+        "key": "",
+        "pass": "",
+        "group": "",
+        "reason": "",
+        "importance": 2,
+        "urgency": 1,
+        "effort": 1,
+        "attempts": 0
       }
     }
   ],

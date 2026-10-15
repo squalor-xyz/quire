@@ -14,28 +14,29 @@
 
 - Pandoc option passthrough and watch mode are out of scope for this roadmap. Windows support is deferred (see its later item), not excluded.
 
-16 items · — 1 · done 14 · later 1
+17 items · — 2 · done 14 · later 1
 
 | # | Slice | Title | Size | Effort | Trees | Findings | Status |
 |---|---|---|---|---|---|---|---|
 | 1 | [s12](slices/s12.md) | Render TeX math without a browser or network | L | 3 | core, install | G5 | — |
 | 2 | s13 | Support Windows | L | 3 | core, install | G5 | later |
+| 3 | s17 | Reject an empty --config name instead of ignoring it | S | 1 | core | discovered from s16 | — |
 
 ---
 
 | # | Slice | Title | Size | Effort | Trees | Findings | Status |
 |---|---|---|---|---|---|---|---|
-| 3 | [s01](slices/s01.md) | Guard against overwriting the source | S | 1 | core | G1 | done |
-| 4 | [s02](slices/s02.md) | Pick the WeasyPrint worker interpreter correctly | M | 2 | core | G2 | done |
-| 5 | [s03](slices/s03.md) | Reject install.py --python without --skip-venv | S | 1 | install | G2 | done |
-| 6 | [s04](slices/s04.md) | Detect YAML front matter like Pandoc | M | 2 | core | G1 | done |
-| 7 | [s05](slices/s05.md) | Add quire default to set or clear the default profile | M | 2 | install | G3 | done |
-| 8 | [s06](slices/s06.md) | Add quire remove to unregister a profile | M | 2 | install | G3 | done |
-| 9 | [s07](slices/s07.md) | Build several documents in one call | M | 2 | core | G4 | done |
-| 10 | [s10](slices/s10.md) | Turn \newpage and \pagebreak into page breaks | S | 1 | core | G5 | done |
-| 11 | [s11](slices/s11.md) | Append stylesheets after the selected CSS | S | 1 | core | G5 | done |
-| 12 | [s08](slices/s08.md) | Render plain-text input verbatim | M | 2 | core | G5 | done |
-| 13 | [s09](slices/s09.md) | Fail when a profile's required font is missing | M | 2 | core | G5 | done |
-| 14 | [s14](slices/s14.md) | Say where profiles are looked up and how to register one when a --config name is unknown | S | 1 | core |  | done |
-| 15 | [s15](slices/s15.md) | Check for the Mermaid renderer before building starts | S | 1 | core |  | done |
-| 16 | [s16](slices/s16.md) | Let a caller prefer a named profile without requiring it | S | 1 | core |  | done |
+| 4 | [s01](slices/s01.md) | Guard against overwriting the source | S | 1 | core | G1 | done |
+| 5 | [s02](slices/s02.md) | Pick the WeasyPrint worker interpreter correctly | M | 2 | core | G2 | done |
+| 6 | [s03](slices/s03.md) | Reject install.py --python without --skip-venv | S | 1 | install | G2 | done |
+| 7 | [s04](slices/s04.md) | Detect YAML front matter like Pandoc | M | 2 | core | G1 | done |
+| 8 | [s05](slices/s05.md) | Add quire default to set or clear the default profile | M | 2 | install | G3 | done |
+| 9 | [s06](slices/s06.md) | Add quire remove to unregister a profile | M | 2 | install | G3 | done |
+| 10 | [s07](slices/s07.md) | Build several documents in one call | M | 2 | core | G4 | done |
+| 11 | [s10](slices/s10.md) | Turn \newpage and \pagebreak into page breaks | S | 1 | core | G5 | done |
+| 12 | [s11](slices/s11.md) | Append stylesheets after the selected CSS | S | 1 | core | G5 | done |
+| 13 | [s08](slices/s08.md) | Render plain-text input verbatim | M | 2 | core | G5 | done |
+| 14 | [s09](slices/s09.md) | Fail when a profile's required font is missing | M | 2 | core | G5 | done |
+| 15 | [s14](slices/s14.md) | Say where profiles are looked up and how to register one when a --config name is unknown | S | 1 | core |  | done |
+| 16 | [s15](slices/s15.md) | Check for the Mermaid renderer before building starts | S | 1 | core |  | done |
+| 17 | [s16](slices/s16.md) | Let a caller prefer a named profile without requiring it | S | 1 | core |  | done |
