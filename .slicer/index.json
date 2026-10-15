@@ -499,12 +499,24 @@
       "id": "s16",
       "title": "Let a caller prefer a named profile without requiring it",
       "short_title": "Let a caller prefer a named profile without requiring it",
-      "status": "open",
+      "status": "done",
       "has_slice": true,
       "depends_on": [
         "s14"
       ],
-      "note_records": [],
+      "note_records": [
+        {
+          "id": "9d47fc80-df4b-4e09-be38-ac7cd6bea965",
+          "kind": "",
+          "text": "**2026-10-15** — --prefer-config NAME selects NAME when registered (the --config slot); an unregistered name prints one held warning (s14 message: config file, install hint) and falls through to QUIRE_CONFIG, QUIRE_PROFILE, default, plain. Exclusive with --config (argparse, exit 2); empty name is an error; --letterhead with no fallback profile fails naming the preferred config; registered-but-broken still fails; the warning precedes fallback errors and is silent on --help. 115 tests green; gate PASS; real two-target PDF build checked. Note: --config \"\" is still silently ignored (pre-existing).",
+          "created_at": "2026-10-15T13:39:11Z",
+          "attempt": 1,
+          "by": "Jon Robbins",
+          "verified_by": "",
+          "verified_at": "",
+          "stale_after": ""
+        }
+      ],
       "claim": null,
       "fields": {
         "size": "S",
@@ -523,7 +535,7 @@
         "importance": 2,
         "urgency": 2,
         "effort": 1,
-        "attempts": 0
+        "attempts": 1
       }
     }
   ],

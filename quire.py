@@ -857,23 +857,33 @@ def load_user_config(path: Path | None = None) -> UserConfig:
     return UserConfig(default=default.strip(), profiles=profiles, path=cfg_path)
 
 
+def unknown_config_message(
+    cfg: UserConfig, name: str, source: str = "", kind: str = "error"
+) -> str:
+    """Say a config name is not registered, where it was looked up, and how to fix it."""
+    known = ", ".join(sorted(cfg.profiles)) or "(none)"
+    origin = f" from {source}" if source else ""
+    if kind == "warning":
+        lines = [f"warning: preferred config {name!r} is not registered (known: {known})"]
+    else:
+        lines = [f"error: unknown config {name!r}{origin} (known: {known})"]
+    if cfg.path is not None:
+        note = "" if cfg.path.is_file() else " (missing)"
+        lines.append(f"config file: {cfg.path}{note}")
+    if source == "the config default":
+        lines.append("fix it with: quire default <name>, or quire default --clear")
+    else:
+        hint = f"quire install <profile-dir> --name {shlex.quote(name)}"
+        lines.append(f"register it with: {hint}")
+    return "\n".join(lines)
+
+
 def profile_from_name(cfg: UserConfig, name: str, source: str = "") -> Path:
     """Look up a registered profile; source says where an implicit name came from."""
     if not name:
         raise SystemExit("error: config name is empty")
     if name not in cfg.profiles:
-        known = ", ".join(sorted(cfg.profiles)) or "(none)"
-        origin = f" from {source}" if source else ""
-        lines = [f"error: unknown config {name!r}{origin} (known: {known})"]
-        if cfg.path is not None:
-            note = "" if cfg.path.is_file() else " (missing)"
-            lines.append(f"config file: {cfg.path}{note}")
-        if source == "the config default":
-            lines.append("fix it with: quire default <name>, or quire default --clear")
-        else:
-            hint = f"quire install <profile-dir> --name {shlex.quote(name)}"
-            lines.append(f"register it with: {hint}")
-        raise SystemExit("\n".join(lines))
+        raise SystemExit(unknown_config_message(cfg, name, source))
     return cfg.profiles[name]
 
 
@@ -918,10 +928,17 @@ def _parser(
         default=None,
         help="Profile directory or profile.toml (overrides --config)",
     )
-    parser.add_argument(
+    named = parser.add_mutually_exclusive_group()
+    named.add_argument(
         "--config",
         default=None,
         help="Named profile from the user config." + known,
+    )
+    named.add_argument(
+        "--prefer-config",
+        default=None,
+        metavar="NAME",
+        help="Like --config, but warn and carry on if NAME is not registered",
     )
     parser.add_argument(
         "--no-config",
@@ -994,15 +1011,19 @@ def resolve_profile_arg(
     default_profile: Path | None,
     *,
     config_name: str | None = None,
+    prefer_name: str | None = None,
     no_config: bool = False,
     user_config: UserConfig | None = None,
     environ: dict[str, str] | None = None,
+    pending: list[str] | None = None,
 ) -> Path | None:
     """Pick a profile path.
 
     An entry-point default (build.py) skips the user config. Otherwise:
-    --profile, --no-config, --config, QUIRE_CONFIG, QUIRE_PROFILE, then
-    the config file's default.
+    --profile, --no-config, --config, --prefer-config, QUIRE_CONFIG,
+    QUIRE_PROFILE, then the config file's default. An unregistered
+    --prefer-config name adds one warning to pending (printed at once if
+    pending is None) and falls through to the rest.
     """
     if raw is not None:
         return raw
@@ -1014,6 +1035,16 @@ def resolve_profile_arg(
     env = os.environ if environ is None else environ
     if config_name:
         return profile_from_name(cfg, config_name)
+    if prefer_name is not None:
+        if not prefer_name:
+            raise SystemExit("error: config name is empty")
+        if prefer_name in cfg.profiles:
+            return cfg.profiles[prefer_name]
+        message = unknown_config_message(cfg, prefer_name, kind="warning")
+        if pending is None:
+            print(message, file=sys.stderr)
+        else:
+            pending.append(message)
     env_name = env.get("QUIRE_CONFIG", "").strip()
     if env_name:
         return profile_from_name(cfg, env_name, "QUIRE_CONFIG")
@@ -1098,35 +1129,62 @@ def main(
     cfg = None if default_profile is not None else (
         user_config if user_config is not None else load_user_config()
     )
-    pre = argparse.ArgumentParser(add_help=False)
+    pre = argparse.ArgumentParser(prog=prog, add_help=False)
     pre.add_argument("--profile", type=Path, default=None)
-    pre.add_argument("--config", default=None)
+    named = pre.add_mutually_exclusive_group()
+    named.add_argument("--config", default=None)
+    named.add_argument("--prefer-config", default=None)
     pre.add_argument("--no-config", action="store_true")
     known, _rest = pre.parse_known_args(args_in)
-    profile_path = resolve_profile_arg(
-        known.profile,
-        default_profile,
-        config_name=known.config,
-        no_config=known.no_config,
-        user_config=cfg,
-    )
-    if profile_path is not None and known.profile is None:
-        _check_config_profile(profile_path, cfg)
-    profile = load_profile(profile_path) if profile_path is not None else None
+    # Held back so --help and argparse errors stay quiet; a fallback error still shows it.
+    pending: list[str] = []
+    try:
+        profile_path = resolve_profile_arg(
+            known.profile,
+            default_profile,
+            config_name=known.config,
+            prefer_name=known.prefer_config,
+            no_config=known.no_config,
+            user_config=cfg,
+            pending=pending,
+        )
+        if profile_path is not None and known.profile is None:
+            _check_config_profile(profile_path, cfg)
+        profile = load_profile(profile_path) if profile_path is not None else None
+    except SystemExit:
+        for message in pending:
+            print(message, file=sys.stderr)
+        raise
 
     args = _parser(profile, description, prog, cfg).parse_args(args_in)
+    for message in pending:
+        print(message, file=sys.stderr)
     # parse_args already exited on --help. Reload only if the chosen path changed.
     chosen = resolve_profile_arg(
         args.profile,
         default_profile,
         config_name=args.config,
+        prefer_name=args.prefer_config,
         no_config=args.no_config,
         user_config=cfg,
+        pending=[],
     )
     if chosen != profile_path:
         if chosen is not None and args.profile is None:
             _check_config_profile(chosen, cfg)
         profile = load_profile(chosen) if chosen is not None else None
+    if (
+        chosen is None
+        and args.letterhead
+        and args.prefer_config
+        and args.profile is None
+        and default_profile is None
+        and not args.no_config
+    ):
+        raise SystemExit(
+            f"error: --letterhead requires a profile, and the preferred config "
+            f"{args.prefer_config!r} is not registered"
+        )
 
     if args.output is not None and len(args.target) > 1:
         raise SystemExit("error: --output needs a single target")

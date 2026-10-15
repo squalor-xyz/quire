@@ -52,15 +52,24 @@ Selection order, first match:
 1. `--profile PATH` (directory or TOML file)
 2. `--no-config` (plain output)
 3. `--config NAME`
-4. `QUIRE_CONFIG` (registered name)
-5. `QUIRE_PROFILE` (profile path)
-6. User config `default`
-7. Plain output with `plain.css`
+4. `--prefer-config NAME` (skipped with a warning if NAME is not registered)
+5. `QUIRE_CONFIG` (registered name)
+6. `QUIRE_PROFILE` (profile path)
+7. User config `default`
+8. Plain output with `plain.css`
 
 Unknown names and missing profiles produce errors. An unknown name's error names the
 config file it read (noting if that file is missing), where the name came from, and the
 command that fixes it. `--no-config` overrides environment variables and the default,
 but an explicit `--profile` wins.
+
+`--prefer-config NAME` is for a shared script that wants its brand when the machine has
+it. A registered NAME is used as `--config` would. An unregistered NAME prints one warning
+(naming the config file and the `quire install` command) and selection continues down the
+list. The warning is held until the arguments parse, so `--help` and usage errors stay quiet.
+A registered NAME whose profile directory is gone is still an error, an empty NAME is an
+error, `--letterhead` with no profile to fall back on still fails, and `--config` together
+with `--prefer-config` is a usage error (exit 2).
 
 The words `install`, `configs`, `default`, and `remove` as the first argument
 run those subcommands. To build a built-in with one of those names, put an

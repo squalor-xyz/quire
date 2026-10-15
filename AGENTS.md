@@ -25,7 +25,9 @@ separate directories. Do not add brand CSS, fragments, or wrapper scripts here.
 ## Behavior to preserve
 
 - Standalone CLI selection order: `--profile`, `--no-config`, `--config`,
-  `QUIRE_CONFIG`, `QUIRE_PROFILE`, user `default`, then plain output.
+  `--prefer-config`, `QUIRE_CONFIG`, `QUIRE_PROFILE`, user `default`, then plain
+  output. An unregistered `--prefer-config` name warns once and falls through;
+  `--config` stays strict and cannot be combined with it.
 - Embedded callers may pin `default_profile`; that overrides user selection
   except an explicit `--profile`.
 - Profile registration updates the path without changing the user's `default`.
