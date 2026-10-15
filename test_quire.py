@@ -7,6 +7,7 @@ import io
 import os
 import re
 import stat
+import subprocess
 import tempfile
 import tomllib
 import unittest
@@ -1381,6 +1382,231 @@ class MultipleTargetTests(unittest.TestCase):
                 target.write_text(body, encoding="utf-8")
                 with self.assertRaisesRegex(SystemExit, "one.md: line \\d: Mermaid tooling"):
                     self.mermaid_build(str(target))
+
+
+class FontTests(unittest.TestCase):
+    def setUp(self) -> None:
+        temporary = temporary_directory()
+        self.addCleanup(temporary.cleanup)
+        self.root = Path(temporary.name).resolve()
+        self.profile_dir = self.root / "brand"
+        self.profile_dir.mkdir()
+        (self.profile_dir / "a.css").write_text("body { color: #222; }", encoding="utf-8")
+        (self.profile_dir / "memo.md").write_text("Memo\n", encoding="utf-8")
+        (self.root / "one.md").write_text("Hello\n", encoding="utf-8")
+        (self.root / "two.md").write_text("Hello\n", encoding="utf-8")
+
+    def profile(self, top: str = "", variant: str = "", letterhead: str = "") -> quire.Profile:
+        (self.profile_dir / "profile.toml").write_text(
+            f'{top}\n[variants.default]\ncss = ["a.css"]\n{variant}\n'
+            '[variants.confidential]\ncss = ["a.css"]\n'
+            f'[variants.letterhead]\ncss = ["a.css"]\n{letterhead}\n'
+            '[builtins.memo]\nsource = "memo.md"\noutput = "memo.pdf"\n'
+            'variant = "letterhead"\n',
+            encoding="utf-8",
+        )
+        return quire.load_profile(self.profile_dir)
+
+    def plan(self, profile, *, installed=None, name="one.md", format="pdf", **kwargs):
+        stub = patch("quire.installed_font_families", return_value=installed)
+        with stub as lookup:
+            target = str(self.root / name) if name.endswith(".md") else name  # else built-in
+            job = quire.plan_job(target, profile=profile, format=format, **kwargs)
+        return job, lookup
+
+    def run_main(self, *argv: str, cfg: quire.UserConfig | None = None) -> None:
+        cfg = cfg or quire.UserConfig(default="", profiles={})
+        quire.main([str(self.root / "one.md"), str(self.root / "two.md"), *argv], user_config=cfg)
+
+    def test_fonts_parse_at_profile_and_variant_level(self) -> None:
+        profile = self.profile('fonts = ["A", "B"]', 'fonts = ["C"]')
+        self.assertEqual(profile.fonts, ["A", "B"])
+        self.assertEqual(profile.variants["default"].fonts, ["C"])
+        self.assertIsNone(profile.variants["confidential"].fonts)
+        self.assertEqual(self.profile().fonts, [])
+
+    def test_font_names_are_stripped_at_load(self) -> None:
+        profile = self.profile('fonts = [" A  "]', 'fonts = ["\tB"]')
+        self.assertEqual(profile.fonts, ["A"])
+        self.assertEqual(profile.variants["default"].fonts, ["B"])
+
+    def test_bad_fonts_are_errors(self) -> None:
+        for top, variant in (
+            ('fonts = "A"', ""), ("fonts = [1]", ""), ("", 'fonts = "A"'),
+            ("", "fonts = [1, 2]"), ('fonts = [""]', ""),
+        ):
+            with self.subTest(top=top, variant=variant):
+                with self.assertRaisesRegex(SystemExit, "fonts"):
+                    self.profile(top, variant)
+
+    def test_missing_font_names_font_and_profile(self) -> None:
+        profile = self.profile('fonts = ["Brand Sans", "Present"]')
+        with self.assertRaises(SystemExit) as caught:
+            self.plan(profile, installed={"Present"})
+        self.assertEqual(
+            str(caught.exception),
+            'error: profile brand needs font "Brand Sans", which is not installed',
+        )
+        self.assertFalse(list(self.root.glob("*.pdf")))
+
+    def test_present_fonts_pass_case_insensitively(self) -> None:
+        profile = self.profile('fonts = ["brand sans", ".SF Georgian Rounded", "Sign-Painter"]')
+        job, _ = self.plan(
+            profile, installed={"Brand Sans", ".sf georgian rounded", "SIGN-Painter"}
+        )
+        self.assertEqual(job.source, self.root / "one.md")
+
+    def test_variant_fonts_replace_profile_fonts(self) -> None:
+        profile = self.profile('fonts = ["Missing"]', 'fonts = ["Present"]')
+        self.plan(profile, installed={"Present"})
+        with self.assertRaisesRegex(SystemExit, '"Missing"'):
+            self.plan(profile, installed={"Present"}, confidential=True)
+        profile = self.profile('fonts = ["Missing"]', "fonts = []")
+        self.plan(profile, installed=set())
+
+    def test_letterhead_and_builtin_variants_use_their_own_fonts(self) -> None:
+        profile = self.profile('fonts = ["Missing"]', letterhead='fonts = ["Present"]')
+        self.plan(profile, installed={"Present"}, letterhead=True)
+        job, _ = self.plan(profile, installed={"Present"}, name="memo")
+        self.assertEqual(job.source, self.profile_dir / "memo.md")
+        for kwargs in ({"letterhead": True}, {"name": "memo"}):
+            with self.subTest(kwargs=kwargs):
+                with self.assertRaisesRegex(SystemExit, '"Present"'):
+                    self.plan(profile, installed={"Missing"}, **kwargs)
+        profile = self.profile('fonts = ["Missing"]')
+        with self.assertRaisesRegex(SystemExit, '"Missing"'):
+            self.plan(profile, installed=set(), name="memo")
+
+    def test_css_overrides_still_check(self) -> None:
+        profile = self.profile('fonts = ["Missing"]')
+        other = self.root / "b.css"
+        other.write_text("body {}", encoding="utf-8")
+        for kwargs in ({"css": [other]}, {"no_css": True}, {"add_css": [other]}):
+            with self.subTest(kwargs=kwargs):
+                with self.assertRaisesRegex(SystemExit, '"Missing"'):
+                    self.plan(profile, installed={"Other"}, **kwargs)
+
+    def test_html_output_is_not_checked(self) -> None:
+        profile = self.profile('fonts = ["Missing"]')
+        _, lookup = self.plan(profile, installed=set(), format="html")
+        lookup.assert_not_called()
+        with self.assertRaisesRegex(SystemExit, '"Missing"'):
+            self.plan(profile, installed=set(), format="pdf")
+        with patch("quire.installed_font_families") as lookup, patch("quire.render"):
+            self.run_main("--profile", str(self.profile_dir), "--format", "html")
+        lookup.assert_not_called()
+
+    def test_unavailable_lookup_warns_once_and_continues(self) -> None:
+        self.profile('fonts = ["Missing"]')
+        stderr = io.StringIO()
+        error = quire.FontLookupError("fc-list is unavailable")
+        with patch("quire.installed_font_families", side_effect=error) as lookup, \
+                redirect_stderr(stderr), patch("quire.render"):
+            self.run_main("--profile", str(self.profile_dir))
+        self.assertEqual(lookup.call_count, 1)
+        self.assertEqual(
+            stderr.getvalue(), "warning: fc-list is unavailable; profile fonts were not checked\n"
+        )
+
+    def test_timeout_has_its_own_warning(self) -> None:
+        self.profile('fonts = ["Missing"]')
+        stderr = io.StringIO()
+        with patch("quire.subprocess.run", side_effect=subprocess.TimeoutExpired("fc-list", 60)), \
+                redirect_stderr(stderr), patch("quire.render"):
+            self.run_main("--profile", str(self.profile_dir))
+        self.assertEqual(
+            stderr.getvalue(),
+            "warning: fc-list timed out after 60s; profile fonts were not checked\n",
+        )
+
+    def test_batch_looks_up_once_and_fails_before_any_render(self) -> None:
+        self.profile('fonts = ["Missing"]')
+        with patch("quire.installed_font_families", return_value={"Other"}) as lookup, \
+                patch("quire.render") as render, \
+                self.assertRaisesRegex(SystemExit, '"Missing"'):
+            self.run_main("--profile", str(self.profile_dir))
+        self.assertEqual(lookup.call_count, 1)
+        render.assert_not_called()
+
+    def font_error_name(self, *argv: str, cfg: quire.UserConfig, env=None) -> str:
+        """Run main with no fonts installed; return the profile name in the error."""
+        clean = {"QUIRE_CONFIG": "", "QUIRE_PROFILE": "", **(env or {})}
+        with patch.dict("os.environ", clean), \
+                patch("quire.installed_font_families", return_value=set()), \
+                self.assertRaisesRegex(SystemExit, "error: profile (\\S+) needs") as caught:
+            self.run_main(*argv, cfg=cfg)
+        return re.match("error: profile (\\S+) needs", str(caught.exception)).group(1)
+
+    def test_error_names_the_config_actually_used(self) -> None:
+        self.profile('fonts = ["Missing"]')
+        here = self.profile_dir
+        cfg = quire.UserConfig(default="", profiles={"acme": here})
+        both = quire.UserConfig(default="zzz", profiles={"aaa": here, "zzz": here})
+        for label, argv, config, env, name in (
+            ("--config", ["--config", "acme"], cfg, None, "acme"),
+            ("--config alias", ["--config", "zzz"], both, None, "zzz"),
+            ("--prefer-config", ["--prefer-config", "acme"], cfg, None, "acme"),
+            ("QUIRE_CONFIG", [], cfg, {"QUIRE_CONFIG": "acme"}, "acme"),
+            ("user default alias", [], both, None, "zzz"),
+            ("--profile path", ["--profile", str(here)], cfg, None, "brand"),
+            ("QUIRE_PROFILE", [], cfg, {"QUIRE_PROFILE": str(here)}, "brand"),
+        ):
+            with self.subTest(label):
+                self.assertEqual(self.font_error_name(*argv, cfg=config, env=env), name)
+
+    def test_prefer_warning_comes_before_font_warning(self) -> None:
+        self.profile('fonts = ["Missing"]')
+        stderr = io.StringIO()
+        env = {"QUIRE_CONFIG": "", "QUIRE_PROFILE": str(self.profile_dir)}
+        error = quire.FontLookupError("fc-list is unavailable")
+        with patch.dict("os.environ", env), redirect_stderr(stderr), patch("quire.render"), \
+                patch("quire.installed_font_families", side_effect=error):
+            self.run_main("--prefer-config", "nope")
+        lines = stderr.getvalue().splitlines()
+        self.assertTrue(lines[0].startswith("warning: preferred config 'nope'"))
+        self.assertEqual(
+            lines[-1], "warning: fc-list is unavailable; profile fonts were not checked"
+        )
+
+    def test_profile_without_fonts_never_looks_up(self) -> None:
+        _, lookup = self.plan(self.profile(), installed=None)
+        lookup.assert_not_called()
+
+    def run_fc_list(self, **kwargs):
+        with patch("quire.subprocess.run", **kwargs) as run:
+            return run, quire.installed_font_families()
+
+    def test_lookup_parses_fc_list(self) -> None:
+        # With --format each family is one unescaped line, repeated for each face.
+        out = (
+            "SignPainter\nSignPainter-HouseScript\nSignPainter\n"
+            ".SF Georgian Rounded\nFoo, Bar: Baz\\Qux\n\n  Spaced  \n"
+        )
+        done = subprocess.CompletedProcess([], 0, out, "")
+        run, families = self.run_fc_list(return_value=done)
+        self.assertEqual(
+            families,
+            {"SignPainter", "SignPainter-HouseScript", ".SF Georgian Rounded",
+             "Foo, Bar: Baz\\Qux", "Spaced"},
+        )
+        self.assertEqual(
+            run.call_args.args[0][1:], ["--format", "%{[]family{%{family}\\n}}"]
+        )
+        self.assertEqual(run.call_args.kwargs["timeout"], 60)
+        self.assertEqual(run.call_args.kwargs["encoding"], "utf-8")
+        self.assertEqual(run.call_args.kwargs["errors"], "replace")
+
+    def test_lookup_failures_raise(self) -> None:
+        for kwargs, message in (
+            ({"side_effect": FileNotFoundError()}, "fc-list is unavailable"),
+            ({"side_effect": subprocess.TimeoutExpired("fc-list", 1)},
+             "fc-list timed out after 60s"),
+            ({"return_value": subprocess.CompletedProcess([], 1, "Real Font\n", "")},
+             "fc-list failed"),
+        ):
+            with self.subTest(message=message):
+                with self.assertRaisesRegex(quire.FontLookupError, message):
+                    self.run_fc_list(**kwargs)
 
 
 class VersionTests(unittest.TestCase):

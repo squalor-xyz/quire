@@ -84,6 +84,7 @@ class Variant:
     output_suffix: str
     ensure_in_front_matter: list[str]
     mermaid: dict = field(default_factory=dict)
+    fonts: list[str] | None = None
 
 
 @dataclass
@@ -101,6 +102,7 @@ class Profile:
     variants: dict[str, Variant]
     builtins: dict[str, Builtin]
     mermaid: dict = field(default_factory=dict)
+    fonts: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -233,6 +235,18 @@ def _load_mermaid(raw: object) -> dict:
     return result
 
 
+def _load_fonts(raw: dict, label: str) -> list[str] | None:
+    """Return the declared font families, or None when the key is absent."""
+    if "fonts" not in raw:
+        return None
+    fonts = raw["fonts"]
+    if not isinstance(fonts, list) or not all(
+        isinstance(item, str) and item.strip() for item in fonts
+    ):
+        raise SystemExit(f"error: {label}fonts must be a list of nonempty strings")
+    return [item.strip() for item in fonts]
+
+
 def _load_variant(root: Path, name: str, raw: object) -> Variant:
     if not isinstance(raw, dict):
         raise SystemExit(f"error: variant {name} must be a table")
@@ -259,6 +273,7 @@ def _load_variant(root: Path, name: str, raw: object) -> Variant:
         output_suffix=suffix,
         ensure_in_front_matter=_str_list(raw, "ensure_in_front_matter"),
         mermaid=_load_mermaid(raw.get("mermaid", {})),
+        fonts=_load_fonts(raw, f"variant {name} "),
     )
 
 
@@ -323,7 +338,59 @@ def load_profile(path: Path) -> Profile:
         variants=variants,
         builtins=builtins,
         mermaid=_load_mermaid(data.get("mermaid", {})),
+        fonts=_load_fonts(data, "") or [],
     )
+
+
+FONT_LIST_TIMEOUT = 60
+
+
+class FontLookupError(Exception):
+    """fc-list could not report the installed fonts; the message says why."""
+
+
+def installed_font_families() -> set[str]:
+    """Family names fontconfig reports. Raises FontLookupError when it cannot."""
+    # A --format list prints each family unescaped on its own line; plain
+    # `fc-list : family` backslash-escapes "-", "," and ":" in names.
+    cmd = ["fc-list", "--format", "%{[]family{%{family}\\n}}"]
+    try:
+        done = subprocess.run(
+            cmd, capture_output=True, text=True, encoding="utf-8", errors="replace",
+            timeout=FONT_LIST_TIMEOUT,
+        )
+    except subprocess.TimeoutExpired as exc:
+        raise FontLookupError(f"fc-list timed out after {FONT_LIST_TIMEOUT}s") from exc
+    except (OSError, subprocess.SubprocessError) as exc:
+        raise FontLookupError("fc-list is unavailable") from exc
+    if done.returncode != 0:
+        raise FontLookupError("fc-list failed")
+    return {line.strip() for line in done.stdout.splitlines() if line.strip()}
+
+
+class FontCheck:
+    """Look up installed fonts at most once per call, warning once if impossible."""
+
+    def __init__(self, profile_name: str) -> None:
+        self.profile_name = profile_name
+        self._families: set[str] | None = None
+        self._looked_up = False
+
+    def require(self, fonts: list[str]) -> None:
+        if not self._looked_up:
+            self._looked_up = True
+            try:
+                self._families = {name.casefold() for name in installed_font_families()}
+            except FontLookupError as exc:
+                print(f"warning: {exc}; profile fonts were not checked", file=sys.stderr)
+        if self._families is None:
+            return
+        for font in fonts:
+            if font.casefold() not in self._families:
+                raise SystemExit(
+                    f'error: profile {self.profile_name} needs font "{font}", '
+                    "which is not installed"
+                )
 
 
 def variant_name(letterhead: bool, confidential: bool) -> str:
@@ -556,6 +623,7 @@ def plan_job(
     format: str | None = None,
     no_mermaid: bool = False,
     verbose: bool = False,
+    font_check: FontCheck | None = None,
 ) -> Job:
     work = (cwd or Path.cwd()).resolve()
     source, builtin = resolve_source(target, profile, work)
@@ -626,6 +694,12 @@ def plan_job(
         css_files = [PLAIN_CSS]
     if not no_css:
         css_files.extend(checked(raw) for raw in add_css or [])
+
+    # Only PDF embeds installed fonts; HTML leaves the font choice to the reader's machine.
+    if profile is not None and variant is not None and output_format == "pdf":
+        fonts = variant.fonts if variant.fonts is not None else profile.fonts
+        if fonts:
+            (font_check or FontCheck(profile.root.name)).require(fonts)
 
     text = source.read_text(encoding="utf-8")
     verbatim = source.suffix.lower() == ".txt"
@@ -1016,6 +1090,7 @@ def resolve_profile_arg(
     user_config: UserConfig | None = None,
     environ: dict[str, str] | None = None,
     pending: list[str] | None = None,
+    selected: list[str] | None = None,
 ) -> Path | None:
     """Pick a profile path.
 
@@ -1023,7 +1098,8 @@ def resolve_profile_arg(
     --profile, --no-config, --config, --prefer-config, QUIRE_CONFIG,
     QUIRE_PROFILE, then the config file's default. An unregistered
     --prefer-config name adds one warning to pending (printed at once if
-    pending is None) and falls through to the rest.
+    pending is None) and falls through to the rest. A selection by config name
+    appends that name to selected.
     """
     if raw is not None:
         return raw
@@ -1033,12 +1109,15 @@ def resolve_profile_arg(
         return None
     cfg = user_config if user_config is not None else UserConfig(default="", profiles={})
     env = os.environ if environ is None else environ
+    used = selected if selected is not None else []
     if config_name:
+        used.append(config_name)
         return profile_from_name(cfg, config_name)
     if prefer_name is not None:
         if not prefer_name:
             raise SystemExit("error: config name is empty")
         if prefer_name in cfg.profiles:
+            used.append(prefer_name)
             return cfg.profiles[prefer_name]
         message = unknown_config_message(cfg, prefer_name, kind="warning")
         if pending is None:
@@ -1047,11 +1126,13 @@ def resolve_profile_arg(
             pending.append(message)
     env_name = env.get("QUIRE_CONFIG", "").strip()
     if env_name:
+        used.append(env_name)
         return profile_from_name(cfg, env_name, "QUIRE_CONFIG")
     env_path = env.get("QUIRE_PROFILE", "").strip()
     if env_path:
         return Path(env_path).expanduser()
     if cfg.default:
+        used.append(cfg.default)
         return profile_from_name(cfg, cfg.default, "the config default")
     return None
 
@@ -1159,6 +1240,7 @@ def main(
     args = _parser(profile, description, prog, cfg).parse_args(args_in)
     for message in pending:
         print(message, file=sys.stderr)
+    used: list[str] = []
     # parse_args already exited on --help. Reload only if the chosen path changed.
     chosen = resolve_profile_arg(
         args.profile,
@@ -1168,6 +1250,7 @@ def main(
         no_config=args.no_config,
         user_config=cfg,
         pending=[],
+        selected=used,
     )
     if chosen != profile_path:
         if chosen is not None and args.profile is None:
@@ -1189,6 +1272,9 @@ def main(
     if args.output is not None and len(args.target) > 1:
         raise SystemExit("error: --output needs a single target")
     # Plan every target first so a bad one fails before any output is written.
+    font_check = None
+    if profile is not None:
+        font_check = FontCheck(used[0] if used else profile.root.name)
     jobs = [
         plan_job(
             target,
@@ -1204,6 +1290,7 @@ def main(
             format=args.format,
             no_mermaid=args.no_mermaid,
             verbose=args.verbose,
+            font_check=font_check,
         )
         for target in args.target
     ]
