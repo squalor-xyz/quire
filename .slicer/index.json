@@ -348,7 +348,19 @@
       "status": "open",
       "has_slice": true,
       "depends_on": [],
-      "note_records": [],
+      "note_records": [
+        {
+          "id": "1067a898-ca16-4f33-8f2b-3d4c91e702cc",
+          "kind": "",
+          "text": "**2026-10-15** — Owner decisions 2026-10-15: approved mathjax@4.1.3 (Apache-2.0, plain 'mathjax' package; mathjax-full is deprecated) as an optional npm dependency, installed by a separate --with-math installer flag (not folded into --with-mermaid; no browser needed). Scratch evaluation: TeX->SVG in Node works offline, ~40ms. Use svg {fontCache: 'local', linebreaks: {inline: false}} - default inline linebreaking splits into multiple SVGs and WeasyPrint shows only the first. Use tex formatError that throws and remove 'noundefined' so undefined macros error. Output has role=img and data-latex but no aria-label/title; add the TeX source as accessible text. mhchem needs an extra font package (out of scope).",
+          "created_at": "2026-10-15T12:21:08Z",
+          "attempt": 0,
+          "by": "Jon Robbins",
+          "verified_by": "",
+          "verified_at": "",
+          "stale_after": ""
+        }
+      ],
       "claim": null,
       "fields": {
         "size": "L",
