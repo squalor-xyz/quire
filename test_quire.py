@@ -1019,6 +1019,81 @@ class NamedConfigTests(unittest.TestCase):
                 jobs, _ = self._run_main([str(source)], cfg, {**env, "QUIRE_CONFIG": blank})
                 self.assertEqual(jobs[0].css, [cfg.profiles["mine"] / "style.css"])
 
+    def _exit_message(
+        self, argv: list[str], cfg: quire.UserConfig, env: dict[str, str]
+    ) -> tuple[str, str]:
+        """Run main, which must exit; return the exit message and stderr, no render."""
+        errors = io.StringIO()
+        with patch.dict(os.environ, env), patch("quire.render") as render:
+            with redirect_stderr(errors):
+                with self.assertRaises(SystemExit) as caught:
+                    quire.main(argv, user_config=cfg)
+        render.assert_not_called()
+        return str(caught.exception), errors.getvalue()
+
+    def test_config_blank_name_is_an_error_like_an_empty_one(self) -> None:
+        with temporary_directory() as tmp:
+            cfg, source, env = self._prefer(tmp, default="mine")
+            selecting = {**env, "QUIRE_CONFIG": "acme", "QUIRE_PROFILE": "/elsewhere"}
+            argv = ["--config", "   ", str(source)]
+            for pick in (env, selecting):
+                with self.subTest(env=pick):
+                    message, _ = self._exit_message(argv, cfg, pick)
+                    self.assertEqual(message, "error: config name is empty")
+
+    def test_prefer_config_blank_name_is_an_error_like_an_empty_one(self) -> None:
+        with temporary_directory() as tmp:
+            cfg, source, env = self._prefer(tmp, default="mine")
+            selecting = {**env, "QUIRE_CONFIG": "acme", "QUIRE_PROFILE": "/elsewhere"}
+            argv = ["--prefer-config", "   ", str(source)]
+            for pick in (env, selecting):
+                with self.subTest(env=pick):
+                    message, errors = self._exit_message(argv, cfg, pick)
+                    self.assertEqual(message, "error: config name is empty")
+                    self.assertEqual(errors, "")
+
+    def test_config_name_is_trimmed_before_lookup(self) -> None:
+        with temporary_directory() as tmp:
+            cfg, source, env = self._prefer(tmp)
+            jobs, errors = self._run_main(["--config", " acme ", str(source)], cfg, env)
+        self.assertEqual(errors, "")
+        self.assertEqual(jobs[0].css, [cfg.profiles["acme"] / "style.css"])
+
+    def test_prefer_config_name_is_trimmed_before_lookup(self) -> None:
+        with temporary_directory() as tmp:
+            cfg, source, env = self._prefer(tmp)
+            argv = ["--prefer-config", " acme ", str(source)]
+            jobs, errors = self._run_main(argv, cfg, env)
+        self.assertEqual(errors, "")
+        self.assertEqual(jobs[0].css, [cfg.profiles["acme"] / "style.css"])
+
+    def test_trimmed_unknown_config_name_is_reported_trimmed(self) -> None:
+        with temporary_directory() as tmp:
+            cfg, source, env = self._prefer(tmp, registered=False)
+            argv = ["--config", " acme ", str(source)]
+            message, _ = self._exit_message(argv, cfg, env)
+        self.assertIn("error: unknown config 'acme' (known: (none))", message)
+        self.assertIn("--name acme", message)
+        self.assertNotIn("' acme", message)
+
+    def test_trimmed_unregistered_prefer_name_is_warned_trimmed(self) -> None:
+        with temporary_directory() as tmp:
+            cfg, source, env = self._prefer(tmp, registered=False)
+            argv = ["--prefer-config", " acme ", str(source)]
+            jobs, errors = self._run_main(argv, cfg, env)
+        self.assertEqual(jobs[0].css, [quire.PLAIN_CSS])
+        self.assertIn("warning: preferred config 'acme' is not registered", errors)
+        self.assertIn("quire install <profile-dir> --name acme", errors)
+        self.assertNotIn("' acme", errors)
+
+    def test_trimmed_prefer_name_in_letterhead_error_is_trimmed(self) -> None:
+        with temporary_directory() as tmp:
+            cfg, source, env = self._prefer(tmp, registered=False)
+            argv = ["--prefer-config", " acme ", "--letterhead", str(source)]
+            message, _ = self._exit_message(argv, cfg, env)
+        self.assertIn("preferred config 'acme' is not registered", message)
+        self.assertNotIn("' acme", message)
+
     def test_prefer_config_unregistered_letterhead_uses_the_fallback_profile(self) -> None:
         with temporary_directory() as tmp:
             cfg, source, env = self._prefer(tmp, registered=False, default="mine")

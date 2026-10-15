@@ -667,8 +667,8 @@
       "id": "s18",
       "title": "Treat a whitespace-only --config name as empty",
       "short_title": "Treat a whitespace-only --config name as empty",
-      "status": "open",
-      "has_slice": false,
+      "status": "done",
+      "has_slice": true,
       "depends_on": [],
       "note_records": [
         {
@@ -702,7 +702,7 @@
         "importance": 2,
         "urgency": 1,
         "effort": 1,
-        "attempts": 0
+        "attempts": 1
       }
     },
     {
