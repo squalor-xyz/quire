@@ -978,6 +978,11 @@ def _check_config_profile(path: Path, cfg: UserConfig | None) -> None:
     )
 
 
+def config_name_arg(text: str) -> str:
+    """Trim a --config or --prefer-config name; a blank one then fails as empty."""
+    return text.strip()
+
+
 def _parser(
     profile: Profile | None,
     description: str,
@@ -1005,11 +1010,13 @@ def _parser(
     named = parser.add_mutually_exclusive_group()
     named.add_argument(
         "--config",
+        type=config_name_arg,
         default=None,
         help="Named profile from the user config." + known,
     )
     named.add_argument(
         "--prefer-config",
+        type=config_name_arg,
         default=None,
         metavar="NAME",
         help="Like --config, but warn and carry on if NAME is not registered",
@@ -1215,8 +1222,8 @@ def main(
     pre = argparse.ArgumentParser(prog=prog, add_help=False)
     pre.add_argument("--profile", type=Path, default=None)
     named = pre.add_mutually_exclusive_group()
-    named.add_argument("--config", default=None)
-    named.add_argument("--prefer-config", default=None)
+    named.add_argument("--config", type=config_name_arg, default=None)
+    named.add_argument("--prefer-config", type=config_name_arg, default=None)
     pre.add_argument("--no-config", action="store_true")
     known, _rest = pre.parse_known_args(args_in)
     # Held back so --help and argparse errors stay quiet; a fallback error still shows it.

@@ -59,7 +59,9 @@ Selection order, first match:
 8. Plain output with `plain.css`
 
 Unknown names and missing profiles produce errors, and so does an empty `--config` name
-(it is not treated as unset). An unknown name's error names the
+(it is not treated as unset). Surrounding whitespace is trimmed from `--config` and
+`--prefer-config` names, so `--config " acme "` selects `acme`; a name that is blank after
+trimming is empty and fails the same way. An unknown name's error names the
 config file it read (noting if that file is missing), where the name came from, and the
 command that fixes it. `--no-config` overrides environment variables and the default,
 but an explicit `--profile` wins.
