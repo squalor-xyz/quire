@@ -58,7 +58,8 @@ Selection order, first match:
 7. User config `default`
 8. Plain output with `plain.css`
 
-Unknown names and missing profiles produce errors. An unknown name's error names the
+Unknown names and missing profiles produce errors, and so does an empty `--config` name
+(it is not treated as unset). An unknown name's error names the
 config file it read (noting if that file is missing), where the name came from, and the
 command that fixes it. `--no-config` overrides environment variables and the default,
 but an explicit `--profile` wins.
