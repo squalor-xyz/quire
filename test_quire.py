@@ -17,7 +17,7 @@ from unittest.mock import patch
 
 import install
 import quire
-from test_render import RenderTests, HTMLResourceTests, MermaidTests
+from test_render import RenderTests, HTMLResourceTests, MermaidTests  # noqa: F401
 
 APP_DIR = Path(__file__).resolve().parent
 
@@ -50,40 +50,55 @@ class ProfileTests(unittest.TestCase):
         tables = ['resource_root = ".."']
         for name in quire.VARIANT_NAMES.values():
             css_name = f"{name}.css"
-            (self.profile_dir / css_name).write_text("body { color: #222; }", encoding="utf-8")
+            (self.profile_dir / css_name).write_text(
+                "body { color: #222; }", encoding="utf-8"
+            )
             tables.extend([f"[variants.{name}]", f'css = ["{css_name}"]'])
             if "confidential" in name:
-                tables.extend([
-                    'output_suffix = "-confidential"',
-                    'metadata = { confidential = "true" }',
-                    'ensure_in_front_matter = ["confidential"]',
-                ])
+                tables.extend(
+                    [
+                        'output_suffix = "-confidential"',
+                        'metadata = { confidential = "true" }',
+                        'ensure_in_front_matter = ["confidential"]',
+                    ]
+                )
             if "letterhead" in name:
-                tables.extend([
-                    f"[[variants.{name}.includes]]",
-                    'file = "fragments/letterhead.html"',
-                    'skip_if_body_contains = ["letterhead-block"]',
-                    f"[[variants.{name}.includes]]",
-                    'file = "fragments/running-mark.html"',
-                    'only_if_body_contains = ["letterhead-block"]',
-                ])
+                tables.extend(
+                    [
+                        f"[[variants.{name}.includes]]",
+                        'file = "fragments/letterhead.html"',
+                        'skip_if_body_contains = ["letterhead-block"]',
+                        f"[[variants.{name}.includes]]",
+                        'file = "fragments/running-mark.html"',
+                        'only_if_body_contains = ["letterhead-block"]',
+                    ]
+                )
             if "confidential" in name:
-                tables.extend([
-                    f"[[variants.{name}.includes]]",
-                    'file = "fragments/notice.html"',
-                    'after_marker = "letterhead-block"',
-                    'after_anchor = "letterhead-id"',
-                    'close_count = 2',
-                ])
-        for name, variant in (("sample", "default"), ("letter-sample", "letterhead"),
-                              ("letterhead-blank", "letterhead")):
-            tables.extend([
-                f"[builtins.{name}]",
-                'source = "sample.md"',
-                f'output = "../output/{name}.pdf"',
-                f'variant = "{variant}"',
-            ])
-        (self.profile_dir / "profile.toml").write_text("\n".join(tables), encoding="utf-8")
+                tables.extend(
+                    [
+                        f"[[variants.{name}.includes]]",
+                        'file = "fragments/notice.html"',
+                        'after_marker = "letterhead-block"',
+                        'after_anchor = "letterhead-id"',
+                        "close_count = 2",
+                    ]
+                )
+        for name, variant in (
+            ("sample", "default"),
+            ("letter-sample", "letterhead"),
+            ("letterhead-blank", "letterhead"),
+        ):
+            tables.extend(
+                [
+                    f"[builtins.{name}]",
+                    'source = "sample.md"',
+                    f'output = "../output/{name}.pdf"',
+                    f'variant = "{variant}"',
+                ]
+            )
+        (self.profile_dir / "profile.toml").write_text(
+            "\n".join(tables), encoding="utf-8"
+        )
         self.profile = quire.load_profile(self.profile_dir)
 
     def test_variants_and_builtins_resolve(self) -> None:
@@ -137,7 +152,9 @@ class ProfileTests(unittest.TestCase):
             Path("/tmp/flag"),
         )
         self.assertEqual(
-            quire.resolve_profile_arg(None, None, config_name="acme", user_config=cfg, environ={}),
+            quire.resolve_profile_arg(
+                None, None, config_name="acme", user_config=cfg, environ={}
+            ),
             Path("/tmp/acme"),
         )
         self.assertIsNone(
@@ -196,7 +213,11 @@ class ProfileTests(unittest.TestCase):
             profile=self.profile,
             cwd=self.root,
         )
-        fragment = (self.profile_dir / "fragments" / "letterhead.html").read_text(encoding="utf-8").strip()
+        fragment = (
+            (self.profile_dir / "fragments" / "letterhead.html")
+            .read_text(encoding="utf-8")
+            .strip()
+        )
         self.assertIn(fragment, job.markdown)
         self.assertEqual(job.css, [self.profile_dir / "letterhead.css"])
         self.assertNotIn("confidential-banner", job.markdown)
@@ -221,7 +242,11 @@ Hello
                 letterhead=True,
                 cwd=Path(tmp),
             )
-        mark = (self.profile_dir / "fragments" / "running-mark.html").read_text(encoding="utf-8").strip()
+        mark = (
+            (self.profile_dir / "fragments" / "running-mark.html")
+            .read_text(encoding="utf-8")
+            .strip()
+        )
         self.assertIn(mark, job.markdown)
         self.assertEqual(job.markdown.count("letterhead-block"), 1)
         self.assertTrue(job.markdown.strip().startswith("<img"))
@@ -297,7 +322,9 @@ Hello
         job = quire.plan_job(str(path), profile=None, confidential=True, cwd=self.root)
         self.assertEqual(job.markdown.count("confidential-banner"), 1)
         self.assertIn(quire.PLAIN_CONFIDENTIAL_BANNER, job.markdown)
-        self.assertLess(job.markdown.find("confidential-banner"), job.markdown.find("# Notes"))
+        self.assertLess(
+            job.markdown.find("confidential-banner"), job.markdown.find("# Notes")
+        )
         self.assertIn("confidential: true", job.markdown.split("# Notes", 1)[0])
         self.assertEqual(job.metadata["confidential"], "true")
         self.assertEqual(job.css, [quire.PLAIN_CONFIDENTIAL_CSS])
@@ -336,7 +363,11 @@ Hello
         )
 
         bare = quire.plan_job(
-            str(path), profile=None, confidential=True, no_css=True, cwd=self.root,
+            str(path),
+            profile=None,
+            confidential=True,
+            no_css=True,
+            cwd=self.root,
         )
         self.assertEqual(bare.css, [])
         self.assertIn("confidential-banner", bare.markdown)
@@ -357,14 +388,20 @@ Hello
         for profile in (None, self.profile):
             with self.subTest(profile=profile):
                 job = quire.plan_job(
-                    str(source), profile=profile, css=[Path("custom.css")], cwd=self.root
+                    str(source),
+                    profile=profile,
+                    css=[Path("custom.css")],
+                    cwd=self.root,
                 )
                 self.assertEqual(job.css, [css])
 
     def test_no_css_overrides_custom_and_profile_css(self) -> None:
         job = quire.plan_job(
-            "letter-sample", profile=self.profile, no_css=True,
-            css=[Path("missing.css")], cwd=self.root,
+            "letter-sample",
+            profile=self.profile,
+            no_css=True,
+            css=[Path("missing.css")],
+            cwd=self.root,
         )
         self.assertEqual(job.css, [])
         self.assertIn("letterhead-block", job.markdown)
@@ -377,9 +414,7 @@ Hello
             path.write_text("body { color: black; }", encoding="utf-8")
         source = self.profile_dir / "sample.md"
         extra = [Path("first.css"), Path("second.css")]
-        plain = quire.plan_job(
-            str(source), profile=None, add_css=extra, cwd=self.root
-        )
+        plain = quire.plan_job(str(source), profile=None, add_css=extra, cwd=self.root)
         self.assertEqual(plain.css, [quire.PLAIN_CSS, first, second])
         base = quire.plan_job("letter-sample", profile=self.profile, cwd=self.root)
         added = quire.plan_job(
@@ -387,13 +422,18 @@ Hello
         )
         self.assertEqual(added.css, base.css + [first, second])
         reordered = quire.plan_job(
-            "letter-sample", profile=self.profile,
-            add_css=[Path("second.css"), Path("first.css")], cwd=self.root,
+            "letter-sample",
+            profile=self.profile,
+            add_css=[Path("second.css"), Path("first.css")],
+            cwd=self.root,
         )
         self.assertEqual(reordered.css, base.css + [second, first])
         replaced = quire.plan_job(
-            str(source), profile=self.profile, css=[Path("custom.css")],
-            add_css=extra, cwd=self.root,
+            str(source),
+            profile=self.profile,
+            css=[Path("custom.css")],
+            add_css=extra,
+            cwd=self.root,
         )
         self.assertEqual(replaced.css, [custom, first, second])
 
@@ -402,8 +442,11 @@ Hello
         extra.write_text("body { color: black; }", encoding="utf-8")
         source = self.profile_dir / "sample.md"
         job = quire.plan_job(
-            str(source), profile=None, confidential=True,
-            add_css=[Path("extra.css")], cwd=self.root,
+            str(source),
+            profile=None,
+            confidential=True,
+            add_css=[Path("extra.css")],
+            cwd=self.root,
         )
         self.assertEqual(job.css, [quire.PLAIN_CONFIDENTIAL_CSS, extra])
 
@@ -420,15 +463,23 @@ Hello
         with patch("quire.render") as render:
             with self.assertRaisesRegex(SystemExit, "CSS missing"):
                 quire.main(
-                    ["--no-config", str(source), "--add-css", str(self.root / "gone.css")],
+                    [
+                        "--no-config",
+                        str(source),
+                        "--add-css",
+                        str(self.root / "gone.css"),
+                    ],
                     user_config=cfg,
                 )
         render.assert_not_called()
 
     def test_no_css_drops_added_stylesheets(self) -> None:
         job = quire.plan_job(
-            "letter-sample", profile=self.profile, no_css=True,
-            add_css=[Path("missing.css")], cwd=self.root,
+            "letter-sample",
+            profile=self.profile,
+            no_css=True,
+            add_css=[Path("missing.css")],
+            cwd=self.root,
         )
         self.assertEqual(job.css, [])
 
@@ -436,8 +487,10 @@ Hello
         (self.root / "ok.css").write_text("", encoding="utf-8")
         with self.assertRaisesRegex(SystemExit, "CSS missing"):
             quire.plan_job(
-                "letter-sample", profile=self.profile,
-                add_css=[Path("ok.css"), Path("missing.css")], cwd=self.root,
+                "letter-sample",
+                profile=self.profile,
+                add_css=[Path("ok.css"), Path("missing.css")],
+                cwd=self.root,
             )
 
     def test_add_css_option_is_repeatable(self) -> None:
@@ -450,18 +503,27 @@ Hello
         for target in ("letter-sample", str(self.profile_dir / "sample.md")):
             with self.subTest(target=target):
                 job = quire.plan_job(
-                    target, profile=self.profile, confidential=True,
-                    output=Path("chosen/result.pdf"), cwd=self.root,
+                    target,
+                    profile=self.profile,
+                    confidential=True,
+                    output=Path("chosen/result.pdf"),
+                    cwd=self.root,
                 )
                 self.assertEqual(job.output, self.root / "chosen" / "result.pdf")
                 self.assertEqual(job.metadata["confidential"], "true")
 
     def test_output_cannot_overwrite_source(self) -> None:
         (self.root / "notes.md").write_text("Hello\n", encoding="utf-8")
-        for output in (Path("notes.md"), self.root / "notes.md", Path("./sub/../notes.md")):
+        for output in (
+            Path("notes.md"),
+            self.root / "notes.md",
+            Path("./sub/../notes.md"),
+        ):
             with self.subTest(output=output):
                 with self.assertRaisesRegex(SystemExit, "overwrite the source"):
-                    quire.plan_job("notes.md", profile=None, output=output, cwd=self.root)
+                    quire.plan_job(
+                        "notes.md", profile=None, output=output, cwd=self.root
+                    )
 
 
 class ConfigFileTests(unittest.TestCase):
@@ -509,7 +571,9 @@ class ConfigFileTests(unittest.TestCase):
                 "'acme' = '/old'",
             ):
                 for newline in ("", "\n"):
-                    with self.subTest(header=header, assignment=assignment, newline=newline):
+                    with self.subTest(
+                        header=header, assignment=assignment, newline=newline
+                    ):
                         original = (
                             '# keep this comment\ndefault = "other"\n'
                             f'{header}\nother = "/other"\n{assignment}\n'
@@ -520,8 +584,8 @@ class ConfigFileTests(unittest.TestCase):
                         expected["profiles"]["acme"] = "/new"
                         self.assertEqual(tomllib.loads(updated), expected)
                         self.assertIn(header, updated)
-                        self.assertIn('# keep this comment', updated)
-                        self.assertIn('[extra] # unrelated table', updated)
+                        self.assertIn("# keep this comment", updated)
+                        self.assertIn("[extra] # unrelated table", updated)
                         self.assertEqual(updated.endswith("\n"), bool(newline))
 
     def test_upsert_adds_profile_before_commented_next_table(self) -> None:
@@ -535,9 +599,11 @@ class ConfigFileTests(unittest.TestCase):
                 expected = tomllib.loads(original)
                 expected.setdefault("profiles", {})["acme"] = "/new"
                 self.assertEqual(tomllib.loads(updated), expected)
-                self.assertIn('# keep', updated)
+                self.assertIn("# keep", updated)
 
-    def test_registration_rejects_invalid_or_unsafe_updates_without_writing(self) -> None:
+    def test_registration_rejects_invalid_or_unsafe_updates_without_writing(
+        self,
+    ) -> None:
         for original in (
             '[profiles]\nacme = "unterminated',
             'profiles = "not a table"\n',
@@ -557,8 +623,11 @@ class ConfigFileTests(unittest.TestCase):
                 config_path.write_text(original, encoding="utf-8")
                 with self.assertRaisesRegex(SystemExit, "file left unchanged"):
                     install.register_config(
-                        name="acme", profile=profile, bin_dir=root / "bin",
-                        config_dir=config_dir, python=root / "python",
+                        name="acme",
+                        profile=profile,
+                        bin_dir=root / "bin",
+                        config_dir=config_dir,
+                        python=root / "python",
                         script=APP_DIR / "quire.py",
                     )
                 self.assertEqual(config_path.read_text(encoding="utf-8"), original)
@@ -567,10 +636,19 @@ class ConfigFileTests(unittest.TestCase):
     def test_install_python_requires_skip_venv(self) -> None:
         with temporary_directory() as tmp:
             root = Path(tmp)
-            with patch("install.install") as mocked, \
-                    self.assertRaisesRegex(SystemExit, "--python requires --skip-venv"):
-                install.main(["--python", str(root / "python"), "--bin-dir", str(root / "bin"),
-                              "--config-dir", str(root / "config")])
+            with patch("install.install") as mocked, self.assertRaisesRegex(
+                SystemExit, "--python requires --skip-venv"
+            ):
+                install.main(
+                    [
+                        "--python",
+                        str(root / "python"),
+                        "--bin-dir",
+                        str(root / "bin"),
+                        "--config-dir",
+                        str(root / "config"),
+                    ]
+                )
             mocked.assert_not_called()
             self.assertFalse((root / "bin").exists())
 
@@ -652,10 +730,21 @@ class NamedConfigTests(unittest.TestCase):
             config_dir = root / "cfg"
             bin_dir = root / "bin"
             for name in ("acme", "other"):
-                quire.main(["install", str(self._profile(root, name)), "--no-command",
-                            "--bin-dir", str(bin_dir), "--config-dir", str(config_dir)])
+                quire.main(
+                    [
+                        "install",
+                        str(self._profile(root, name)),
+                        "--no-command",
+                        "--bin-dir",
+                        str(bin_dir),
+                        "--config-dir",
+                        str(config_dir),
+                    ]
+                )
             path = config_dir / "config.toml"
-            path.write_text("# mine\n" + path.read_text(encoding="utf-8"), encoding="utf-8")
+            path.write_text(
+                "# mine\n" + path.read_text(encoding="utf-8"), encoding="utf-8"
+            )
             before = path.read_text(encoding="utf-8")
             with redirect_stdout(io.StringIO()):
                 quire.main(["default", "acme", "--config-dir", str(config_dir)])
@@ -676,12 +765,15 @@ class NamedConfigTests(unittest.TestCase):
             path = config_dir / "config.toml"
             path.write_text(original, encoding="utf-8")
             for argv in (["missing"], [], ["acme", "--clear"]):
-                with self.subTest(argv=argv), self.assertRaises(SystemExit), \
-                        redirect_stderr(io.StringIO()):
+                with self.subTest(argv=argv), self.assertRaises(
+                    SystemExit
+                ), redirect_stderr(io.StringIO()):
                     quire.main(["default", *argv, "--config-dir", str(config_dir)])
             self.assertEqual(path.read_text(encoding="utf-8"), original)
         with self.assertRaisesRegex(SystemExit, "file left unchanged"):
-            install.set_default('default = """\n[x]\n"""\n[profiles]\nacme = "/a"\n', "acme")
+            install.set_default(
+                'default = """\n[x]\n"""\n[profiles]\nacme = "/a"\n', "acme"
+            )
 
     def test_remove_drops_entry_and_its_launcher_only(self) -> None:
         with temporary_directory() as tmp:
@@ -698,20 +790,28 @@ class NamedConfigTests(unittest.TestCase):
                 quire.main(["remove", "acme", *common])
             after = path.read_text(encoding="utf-8")
             self.assertEqual(
-                after, "".join(line for line in before.splitlines(keepends=True)
-                               if not line.startswith("acme ="))
+                after,
+                "".join(
+                    line
+                    for line in before.splitlines(keepends=True)
+                    if not line.startswith("acme =")
+                ),
             )
             self.assertFalse((bin_dir / "acme-pdf").exists())
             self.assertTrue((bin_dir / "other-pdf").exists())
             self.assertTrue((root / "acme" / "profile.toml").is_file())
 
-            (bin_dir / "other-pdf").write_text("#!/bin/sh\necho mine\n", encoding="utf-8")
+            (bin_dir / "other-pdf").write_text(
+                "#!/bin/sh\necho mine\n", encoding="utf-8"
+            )
             errors = io.StringIO()
             with redirect_stdout(io.StringIO()), redirect_stderr(errors):
                 quire.main(["remove", "other", *common])
             self.assertIn("left in place", errors.getvalue())
             self.assertTrue((bin_dir / "other-pdf").exists())
-            self.assertNotIn("other", tomllib.loads(path.read_text(encoding="utf-8"))["profiles"])
+            self.assertNotIn(
+                "other", tomllib.loads(path.read_text(encoding="utf-8"))["profiles"]
+            )
 
     def test_remove_refuses_default_and_unknown_names(self) -> None:
         with temporary_directory() as tmp:
@@ -741,7 +841,9 @@ class NamedConfigTests(unittest.TestCase):
                 quire.main(["install", str(profile), *common])
             (profile / "profile.toml").unlink()
             cfg = quire.load_user_config(config_dir / "config.toml")
-            with self.assertRaisesRegex(SystemExit, r"config 'acme' points to .*quire install"):
+            with self.assertRaisesRegex(
+                SystemExit, r"config 'acme' points to .*quire install"
+            ):
                 quire.main(["--config", "acme", "x.md"], user_config=cfg)
             with self.assertRaisesRegex(SystemExit, "profile not found"):
                 quire.main(["--profile", str(profile), "x.md"], user_config=cfg)
@@ -759,7 +861,9 @@ class NamedConfigTests(unittest.TestCase):
             cfg = quire.load_user_config(Path(tmp) / "config.toml")
             with self.assertRaises(SystemExit) as caught:
                 quire.main(["--config", "acme", "x.md"], user_config=cfg)
-            self.assertIn("quire install <profile-dir> --name acme", str(caught.exception))
+            self.assertIn(
+                "quire install <profile-dir> --name acme", str(caught.exception)
+            )
 
     def test_unknown_config_lists_known_names(self) -> None:
         with temporary_directory() as tmp:
@@ -797,7 +901,9 @@ class NamedConfigTests(unittest.TestCase):
             with self.assertRaises(SystemExit) as caught:
                 quire.resolve_profile_arg(None, None, user_config=cfg, environ={})
             message = str(caught.exception)
-            self.assertIn("unknown config 'gone' from the config default (known:", message)
+            self.assertIn(
+                "unknown config 'gone' from the config default (known:", message
+            )
             self.assertIn(f"config file: {path}\n", message)
             self.assertIn("quire default <name>", message)
             self.assertIn("quire default --clear", message)
@@ -827,7 +933,9 @@ class NamedConfigTests(unittest.TestCase):
         return profile
 
     def _prefer(self, tmp: str, *, registered: bool = True, default: str = ""):
-        """A config for --prefer-config tests, a source file, and an env that selects nothing."""
+        """A config for --prefer-config tests, a source file, and an env that
+        selects nothing.
+        """
         root = Path(tmp)
         profiles = {"acme": self._usable(root, "acme")} if registered else {}
         if default:
@@ -842,8 +950,9 @@ class NamedConfigTests(unittest.TestCase):
     def _run_main(self, argv: list[str], cfg: quire.UserConfig, env: dict[str, str]):
         """Run main without rendering; return the planned jobs and stderr text."""
         errors = io.StringIO()
-        with patch.dict(os.environ, env), patch("quire.render") as render, \
-                redirect_stderr(errors):
+        with patch.dict(os.environ, env), patch(
+            "quire.render"
+        ) as render, redirect_stderr(errors):
             quire.main(argv, user_config=cfg)
         return [call.args[0] for call in render.call_args_list], errors.getvalue()
 
@@ -856,7 +965,9 @@ class NamedConfigTests(unittest.TestCase):
                 ),
                 cfg.profiles["acme"],
             )
-            jobs, errors = self._run_main(["--prefer-config", "acme", str(source)], cfg, env)
+            jobs, errors = self._run_main(
+                ["--prefer-config", "acme", str(source)], cfg, env
+            )
         self.assertEqual(errors, "")
         self.assertEqual(jobs[0].css, [cfg.profiles["acme"] / "style.css"])
 
@@ -888,7 +999,10 @@ class NamedConfigTests(unittest.TestCase):
                 )
                 self.assertEqual(
                     quire.resolve_profile_arg(
-                        None, None, prefer_name="acme", user_config=cfg,
+                        None,
+                        None,
+                        prefer_name="acme",
+                        user_config=cfg,
                         environ={"QUIRE_PROFILE": "/elsewhere"},
                     ),
                     Path("/elsewhere"),
@@ -911,7 +1025,9 @@ class NamedConfigTests(unittest.TestCase):
             cfg, source, env = self._prefer(tmp, registered=False)
             profile = self._usable(Path(tmp), "direct")
             jobs, errors = self._run_main(
-                ["--prefer-config", "acme", "--profile", str(profile), str(source)], cfg, env
+                ["--prefer-config", "acme", "--profile", str(profile), str(source)],
+                cfg,
+                env,
             )
             self.assertEqual(errors, "")
             self.assertEqual(jobs[0].css, [profile / "style.css"])
@@ -927,14 +1043,19 @@ class NamedConfigTests(unittest.TestCase):
         with temporary_directory() as tmp:
             cfg, source, env = self._prefer(tmp, registered=False)
             errors = io.StringIO()
-            with patch.dict(os.environ, env), patch("quire.render") as render, \
-                    redirect_stderr(errors), self.assertRaises(SystemExit) as caught:
+            with patch.dict(os.environ, env), patch(
+                "quire.render"
+            ) as render, redirect_stderr(errors), self.assertRaises(
+                SystemExit
+            ) as caught:
                 quire.main(
                     ["--prefer-config", "acme", "--config", "acme", str(source)],
                     user_config=cfg,
                 )
         self.assertEqual(caught.exception.code, 2)
-        self.assertRegex(errors.getvalue(), "not allowed with argument --(prefer-)?config")
+        self.assertRegex(
+            errors.getvalue(), "not allowed with argument --(prefer-)?config"
+        )
         self.assertNotIn("unknown config", errors.getvalue())
         render.assert_not_called()
 
@@ -942,8 +1063,9 @@ class NamedConfigTests(unittest.TestCase):
         with temporary_directory() as tmp:
             cfg, _source, env = self._prefer(tmp)
             out = io.StringIO()
-            with patch.dict(os.environ, env), redirect_stdout(out), \
-                    self.assertRaises(SystemExit):
+            with patch.dict(os.environ, env), redirect_stdout(out), self.assertRaises(
+                SystemExit
+            ):
                 quire.main(["--help"], user_config=cfg)
         self.assertRegex(out.getvalue(), r"\[--config CONFIG \| --prefer-config NAME\]")
 
@@ -952,8 +1074,9 @@ class NamedConfigTests(unittest.TestCase):
             cfg, source, env = self._prefer(tmp, registered=False)
             for argv in (["--help"], ["--bogus", str(source)]):
                 errors = io.StringIO()
-                with patch.dict(os.environ, env), redirect_stdout(io.StringIO()), \
-                        redirect_stderr(errors), self.assertRaises(SystemExit):
+                with patch.dict(os.environ, env), redirect_stdout(
+                    io.StringIO()
+                ), redirect_stderr(errors), self.assertRaises(SystemExit):
                     quire.main(["--prefer-config", "acme", *argv], user_config=cfg)
                 self.assertNotIn("warning:", errors.getvalue())
 
@@ -962,8 +1085,11 @@ class NamedConfigTests(unittest.TestCase):
             cfg, source, env = self._prefer(tmp, registered=False)
             env["QUIRE_CONFIG"] = "gone"
             errors = io.StringIO()
-            with patch.dict(os.environ, env), redirect_stderr(errors), \
-                    self.assertRaisesRegex(SystemExit, "unknown config 'gone' from QUIRE_CONFIG"):
+            with patch.dict(os.environ, env), redirect_stderr(
+                errors
+            ), self.assertRaisesRegex(
+                SystemExit, "unknown config 'gone' from QUIRE_CONFIG"
+            ):
                 quire.main(["--prefer-config", "acme", str(source)], user_config=cfg)
         self.assertEqual(errors.getvalue().count("warning: preferred config 'acme'"), 1)
 
@@ -972,8 +1098,9 @@ class NamedConfigTests(unittest.TestCase):
             cfg, source, env = self._prefer(tmp, registered=False, default="mine")
             (cfg.profiles["mine"] / "profile.toml").unlink()
             errors = io.StringIO()
-            with patch.dict(os.environ, env), redirect_stderr(errors), \
-                    self.assertRaisesRegex(SystemExit, "config 'mine' points to"):
+            with patch.dict(os.environ, env), redirect_stderr(
+                errors
+            ), self.assertRaisesRegex(SystemExit, "config 'mine' points to"):
                 quire.main(["--prefer-config", "acme", str(source)], user_config=cfg)
         self.assertEqual(errors.getvalue().count("warning: preferred config 'acme'"), 1)
 
@@ -982,11 +1109,13 @@ class NamedConfigTests(unittest.TestCase):
             cfg, source, env = self._prefer(tmp, registered=False)
             pinned = self._usable(Path(tmp), "pinned")
             errors = io.StringIO()
-            with patch.dict(os.environ, env), patch("quire.render") as render, \
-                    redirect_stderr(errors):
+            with patch.dict(os.environ, env), patch(
+                "quire.render"
+            ) as render, redirect_stderr(errors):
                 quire.main(
                     ["--prefer-config", "nope", str(source)],
-                    default_profile=pinned, user_config=cfg,
+                    default_profile=pinned,
+                    user_config=cfg,
                 )
         (job,) = [call.args[0] for call in render.call_args_list]
         self.assertEqual(job.css, [pinned / "style.css"])
@@ -995,8 +1124,9 @@ class NamedConfigTests(unittest.TestCase):
     def test_prefer_config_empty_name_is_an_error(self) -> None:
         with temporary_directory() as tmp:
             cfg, source, env = self._prefer(tmp)
-            with patch.dict(os.environ, env), \
-                    self.assertRaisesRegex(SystemExit, "error: config name is empty"):
+            with patch.dict(os.environ, env), self.assertRaisesRegex(
+                SystemExit, "error: config name is empty"
+            ):
                 quire.main(["--prefer-config", "", str(source)], user_config=cfg)
 
     def test_config_empty_name_is_an_error_and_does_not_fall_through(self) -> None:
@@ -1004,8 +1134,9 @@ class NamedConfigTests(unittest.TestCase):
             cfg, source, env = self._prefer(tmp, default="mine")
             selecting = {**env, "QUIRE_CONFIG": "acme", "QUIRE_PROFILE": "/elsewhere"}
             for pick in (env, selecting):
-                with self.subTest(env=pick), patch.dict(os.environ, pick), \
-                        patch("quire.render") as render:
+                with self.subTest(env=pick), patch.dict(os.environ, pick), patch(
+                    "quire.render"
+                ) as render:
                     with self.assertRaisesRegex(
                         SystemExit, "^error: config name is empty$"
                     ):
@@ -1016,7 +1147,9 @@ class NamedConfigTests(unittest.TestCase):
         with temporary_directory() as tmp:
             cfg, source, env = self._prefer(tmp, default="mine")
             for blank in ("", "   "):
-                jobs, _ = self._run_main([str(source)], cfg, {**env, "QUIRE_CONFIG": blank})
+                jobs, _ = self._run_main(
+                    [str(source)], cfg, {**env, "QUIRE_CONFIG": blank}
+                )
                 self.assertEqual(jobs[0].css, [cfg.profiles["mine"] / "style.css"])
 
     def _exit_message(
@@ -1094,7 +1227,9 @@ class NamedConfigTests(unittest.TestCase):
         self.assertIn("preferred config 'acme' is not registered", message)
         self.assertNotIn("' acme", message)
 
-    def test_prefer_config_unregistered_letterhead_uses_the_fallback_profile(self) -> None:
+    def test_prefer_config_unregistered_letterhead_uses_the_fallback_profile(
+        self,
+    ) -> None:
         with temporary_directory() as tmp:
             cfg, source, env = self._prefer(tmp, registered=False, default="mine")
             (cfg.profiles["mine"] / "profile.toml").write_text(
@@ -1107,7 +1242,8 @@ class NamedConfigTests(unittest.TestCase):
             )
             via_env, _ = self._run_main(
                 ["--prefer-config", "acme", "--letterhead", str(source)],
-                cfg, {**env, "QUIRE_CONFIG": "mine", "QUIRE_PROFILE": ""},
+                cfg,
+                {**env, "QUIRE_CONFIG": "mine", "QUIRE_PROFILE": ""},
             )
         for jobs in (via_default, via_env):
             self.assertEqual(jobs[0].css, [cfg.profiles["mine"] / "style.css"])
@@ -1115,18 +1251,25 @@ class NamedConfigTests(unittest.TestCase):
     def test_prefer_config_unregistered_with_letterhead_fails(self) -> None:
         with temporary_directory() as tmp:
             cfg, source, env = self._prefer(tmp, registered=False)
-            with patch.dict(os.environ, env), redirect_stderr(io.StringIO()), \
-                    self.assertRaisesRegex(SystemExit, "preferred config 'acme' is not registered"):
+            with patch.dict(os.environ, env), redirect_stderr(
+                io.StringIO()
+            ), self.assertRaisesRegex(
+                SystemExit, "preferred config 'acme' is not registered"
+            ):
                 quire.main(
-                    ["--prefer-config", "acme", "--letterhead", str(source)], user_config=cfg
+                    ["--prefer-config", "acme", "--letterhead", str(source)],
+                    user_config=cfg,
                 )
 
-    def test_prefer_config_registered_with_missing_profile_toml_still_fails(self) -> None:
+    def test_prefer_config_registered_with_missing_profile_toml_still_fails(
+        self,
+    ) -> None:
         with temporary_directory() as tmp:
             cfg, source, env = self._prefer(tmp)
             (cfg.profiles["acme"] / "profile.toml").unlink()
-            with patch.dict(os.environ, env), \
-                    self.assertRaisesRegex(SystemExit, r"config 'acme' points to .*quire install"):
+            with patch.dict(os.environ, env), self.assertRaisesRegex(
+                SystemExit, r"config 'acme' points to .*quire install"
+            ):
                 quire.main(["--prefer-config", "acme", str(source)], user_config=cfg)
 
     def test_rename_updates_path_and_keeps_default(self) -> None:
@@ -1136,12 +1279,19 @@ class NamedConfigTests(unittest.TestCase):
             second = self._profile(root, "two")
             config_dir = root / "cfg"
             bin_dir = root / "bin"
-            common = ["--name", "acme", "--bin-dir", str(bin_dir), "--config-dir", str(config_dir)]
+            common = [
+                "--name",
+                "acme",
+                "--bin-dir",
+                str(bin_dir),
+                "--config-dir",
+                str(config_dir),
+            ]
             quire.main(["install", str(first), *common])
             (config_dir / "config.toml").write_text(
-                (config_dir / "config.toml").read_text(encoding="utf-8").replace(
-                    'default = ""', 'default = "other"'
-                ),
+                (config_dir / "config.toml")
+                .read_text(encoding="utf-8")
+                .replace('default = ""', 'default = "other"'),
                 encoding="utf-8",
             )
             # other profile line, then update acme
@@ -1205,7 +1355,9 @@ class FrontMatterTests(unittest.TestCase):
 
     def test_dots_close_front_matter(self) -> None:
         text = "---\ntitle: Plan\n...\n\nBody\n"
-        self.assertEqual(quire.split_front_matter(text), ("---\ntitle: Plan\n...", "\n\nBody\n"))
+        self.assertEqual(
+            quire.split_front_matter(text), ("---\ntitle: Plan\n...", "\n\nBody\n")
+        )
         self.assertEqual(
             quire.ensure_front_matter(text, self.keys, self.metadata),
             "---\ntitle: Plan\nconfidential: true\n...\n\nBody\n",
@@ -1213,7 +1365,9 @@ class FrontMatterTests(unittest.TestCase):
 
     def test_byte_order_mark_precedes_front_matter(self) -> None:
         text = "﻿---\ntitle: Plan\n---\nBody\n"
-        self.assertEqual(quire.split_front_matter(text), ("﻿---\ntitle: Plan\n---", "\nBody\n"))
+        self.assertEqual(
+            quire.split_front_matter(text), ("﻿---\ntitle: Plan\n---", "\nBody\n")
+        )
         self.assertEqual(
             quire.ensure_front_matter(text, self.keys, self.metadata),
             "﻿---\ntitle: Plan\nconfidential: true\n---\nBody\n",
@@ -1254,8 +1408,11 @@ class VerbatimTests(unittest.TestCase):
         )
 
     def test_fence_outgrows_backtick_runs_in_the_text(self) -> None:
-        for text, fence in (("x\n```\ny\n", "````"), ("a `````` b\n", "`" * 7),
-                            ("`` one\n", "```")):
+        for text, fence in (
+            ("x\n```\ny\n", "````"),
+            ("a `````` b\n", "`" * 7),
+            ("`` one\n", "```"),
+        ):
             with self.subTest(text=text):
                 job = self.plan(text)
                 self.assertEqual(
@@ -1276,7 +1433,9 @@ class VerbatimTests(unittest.TestCase):
     def test_includes_and_variant_suffix_still_apply(self) -> None:
         (self.root / "intro.html").write_text("<p>Intro</p>", encoding="utf-8")
         job = self.plan(
-            "Hello\n", confidential=True, include_before=[Path("intro.html")],
+            "Hello\n",
+            confidential=True,
+            include_before=[Path("intro.html")],
             format="html",
         )
         self.assertEqual(job.output, self.root / "form-confidential.html")
@@ -1291,7 +1450,9 @@ class VerbatimTests(unittest.TestCase):
         (profile / "mark.html").write_text("<p>Mark</p>", encoding="utf-8")
         (profile / "profile.toml").write_text(
             '[variants.default]\ncss = ["style.css"]\n[[variants.default.includes]]\n'
-            'file = "mark.html"\nonly_if_body_contains = ["FORM-7"]\n', encoding="utf-8")
+            'file = "mark.html"\nonly_if_body_contains = ["FORM-7"]\n',
+            encoding="utf-8",
+        )
         loaded = quire.load_profile(profile)
         self.assertIn("<p>Mark</p>", self.plan("FORM-7\n", profile=loaded).markdown)
         self.assertNotIn("<p>Mark</p>", self.plan("other\n", profile=loaded).markdown)
@@ -1319,8 +1480,11 @@ class VerbatimTests(unittest.TestCase):
         (profile / "profile.toml").write_text(
             '[variants.default]\ncss = ["style.css"]\n[builtins.sheet]\n'
             'source = "sheet.txt"\noutput = "sheet.pdf"\nvariant = "default"\n',
-            encoding="utf-8")
-        job = quire.plan_job("sheet", profile=quire.load_profile(profile), cwd=self.root)
+            encoding="utf-8",
+        )
+        job = quire.plan_job(
+            "sheet", profile=quire.load_profile(profile), cwd=self.root
+        )
         self.assertEqual(job.markdown, "::: quire-verbatim\n```\na  b\n```\n:::\n")
 
     def test_empty_text_file_plans(self) -> None:
@@ -1343,12 +1507,14 @@ class VerbatimTests(unittest.TestCase):
         (profile / "profile.toml").write_text(
             '[variants.default]\ncss = ["style.css"]\n[[variants.default.includes]]\n'
             'file = "mark.html"\nafter_marker = "<div"\nclose_tag = "</div>"\n',
-            encoding="utf-8")
+            encoding="utf-8",
+        )
         loaded = quire.load_profile(profile)
         text = "<div>\nrow\n</div>\n"
         job = self.plan(text, profile=loaded)
         self.assertEqual(
-            job.markdown, "\n<p>Mark</p>\n\n::: quire-verbatim\n```\n" + text + "```\n:::\n"
+            job.markdown,
+            "\n<p>Mark</p>\n\n::: quire-verbatim\n```\n" + text + "```\n:::\n",
         )
         (self.root / "doc.md").write_text(text, encoding="utf-8")
         md = quire.plan_job("doc.md", profile=loaded, cwd=self.root)
@@ -1370,13 +1536,20 @@ class MultipleTargetTests(unittest.TestCase):
 
     def build(self, *argv: str) -> list:
         with patch("quire.render") as render:
-            quire.main([*argv, "--no-config"], user_config=quire.UserConfig(default="", profiles={}))
+            quire.main(
+                [*argv, "--no-config"],
+                user_config=quire.UserConfig(default="", profiles={}),
+            )
         return [call.args[0] for call in render.call_args_list]
 
     def test_each_target_renders_in_order(self) -> None:
-        jobs = self.build(str(self.root / "one.md"), str(self.root / "two.md"), "--format", "html")
-        self.assertEqual([job.output for job in jobs],
-                         [self.root / "one.html", self.root / "two.html"])
+        jobs = self.build(
+            str(self.root / "one.md"), str(self.root / "two.md"), "--format", "html"
+        )
+        self.assertEqual(
+            [job.output for job in jobs],
+            [self.root / "one.html", self.root / "two.html"],
+        )
 
     def test_conflicts_fail_before_any_render(self) -> None:
         one, two = str(self.root / "one.md"), str(self.root / "two.md")
@@ -1386,9 +1559,13 @@ class MultipleTargetTests(unittest.TestCase):
             ((one, str(self.root / "missing.md")), "not found"),
         ):
             with self.subTest(argv=argv):
-                with patch("quire.render") as render, self.assertRaisesRegex(SystemExit, message):
-                    quire.main([*argv, "--no-config"],
-                               user_config=quire.UserConfig(default="", profiles={}))
+                with patch("quire.render") as render, self.assertRaisesRegex(
+                    SystemExit, message
+                ):
+                    quire.main(
+                        [*argv, "--no-config"],
+                        user_config=quire.UserConfig(default="", profiles={}),
+                    )
                 render.assert_not_called()
 
     FENCE = "```mermaid\nflowchart LR\n A-->B\n```\n"
@@ -1401,10 +1578,13 @@ class MultipleTargetTests(unittest.TestCase):
             job.output.write_text("out", encoding="utf-8")
             written.append(job.output)
 
-        with patch("quire.render", side_effect=fake_render), \
-                patch("quire_mermaid.shutil.which", return_value=None):
-            quire.main([*argv, "--no-config", "--format", "html"],
-                       user_config=quire.UserConfig(default="", profiles={}))
+        with patch("quire.render", side_effect=fake_render), patch(
+            "quire_mermaid.shutil.which", return_value=None
+        ):
+            quire.main(
+                [*argv, "--no-config", "--format", "html"],
+                user_config=quire.UserConfig(default="", profiles={}),
+            )
         return written
 
     def mermaid_targets(self) -> list[str]:
@@ -1416,7 +1596,9 @@ class MultipleTargetTests(unittest.TestCase):
             self.mermaid_build(*self.mermaid_targets())
         self.assertFalse(list(self.root.glob("*.html")))
         message = str(caught.exception)
-        self.assertIn(f"{self.root / 'two.md'}: line 3: Mermaid tooling missing", message)
+        self.assertIn(
+            f"{self.root / 'two.md'}: line 3: Mermaid tooling missing", message
+        )
         self.assertIn("python3 install.py --with-mermaid", message)
         self.assertIn("--no-mermaid", message)
 
@@ -1425,18 +1607,27 @@ class MultipleTargetTests(unittest.TestCase):
         fragment.write_text("Intro\n\n" + self.FENCE, encoding="utf-8")
         front = "---\ntitle: T\n---\n\n" + self.FENCE
         for name, body, extra, expected in (
-            ("fragment", "Hello\n", ["--include-before", str(fragment)], f"{fragment}: line 3:"),
+            (
+                "fragment",
+                "Hello\n",
+                ["--include-before", str(fragment)],
+                f"{fragment}: line 3:",
+            ),
             ("front matter", front, [], "two.md: line 5:"),
         ):
             with self.subTest(name):
                 (self.root / "two.md").write_text(body, encoding="utf-8")
                 with self.assertRaisesRegex(SystemExit, re.escape(expected)):
-                    self.mermaid_build(str(self.root / "one.md"), str(self.root / "two.md"), *extra)
+                    self.mermaid_build(
+                        str(self.root / "one.md"), str(self.root / "two.md"), *extra
+                    )
                 self.assertFalse(list(self.root.glob("*.html")))
 
     def test_mermaid_check_is_skipped_without_need(self) -> None:
         with patch("quire_mermaid.shutil.which", side_effect=AssertionError("checked")):
-            jobs = self.build(*self.mermaid_targets(), "--format", "html", "--no-mermaid")
+            jobs = self.build(
+                *self.mermaid_targets(), "--format", "html", "--no-mermaid"
+            )
             self.assertEqual(len(jobs), 2)
             (self.root / "two.md").write_text("Hello\n", encoding="utf-8")
             both = [str(self.root / "one.md"), str(self.root / "two.md")]
@@ -1449,13 +1640,17 @@ class MultipleTargetTests(unittest.TestCase):
         (profile / "diagram.md").write_text(self.FENCE, encoding="utf-8")
         (profile / "profile.toml").write_text(
             '[variants.default]\ncss = ["style.css"]\n[[variants.default.includes]]\n'
-            'file = "diagram.md"\nskip_if_body_contains = ["no-diagram"]\n', encoding="utf-8")
+            'file = "diagram.md"\nskip_if_body_contains = ["no-diagram"]\n',
+            encoding="utf-8",
+        )
         target = self.root / "one.md"
         argv = [str(target), "--profile", str(profile)]
         target.write_text("no-diagram\n", encoding="utf-8")
         self.assertEqual(len(self.mermaid_build(*argv)), 1)
         target.write_text("Hello\n", encoding="utf-8")
-        with self.assertRaisesRegex(SystemExit, "diagram.md: line 1: Mermaid tooling missing"):
+        with self.assertRaisesRegex(
+            SystemExit, "diagram.md: line 1: Mermaid tooling missing"
+        ):
             self.mermaid_build(*argv)
 
     def test_mermaid_check_ignores_indented_code(self) -> None:
@@ -1475,7 +1670,9 @@ class MultipleTargetTests(unittest.TestCase):
         ):
             with self.subTest(name):
                 target.write_text(body, encoding="utf-8")
-                with self.assertRaisesRegex(SystemExit, "one.md: line \\d: Mermaid tooling"):
+                with self.assertRaisesRegex(
+                    SystemExit, "one.md: line \\d: Mermaid tooling"
+                ):
                     self.mermaid_build(str(target))
 
 
@@ -1486,12 +1683,16 @@ class FontTests(unittest.TestCase):
         self.root = Path(temporary.name).resolve()
         self.profile_dir = self.root / "brand"
         self.profile_dir.mkdir()
-        (self.profile_dir / "a.css").write_text("body { color: #222; }", encoding="utf-8")
+        (self.profile_dir / "a.css").write_text(
+            "body { color: #222; }", encoding="utf-8"
+        )
         (self.profile_dir / "memo.md").write_text("Memo\n", encoding="utf-8")
         (self.root / "one.md").write_text("Hello\n", encoding="utf-8")
         (self.root / "two.md").write_text("Hello\n", encoding="utf-8")
 
-    def profile(self, top: str = "", variant: str = "", letterhead: str = "") -> quire.Profile:
+    def profile(
+        self, top: str = "", variant: str = "", letterhead: str = ""
+    ) -> quire.Profile:
         (self.profile_dir / "profile.toml").write_text(
             f'{top}\n[variants.default]\ncss = ["a.css"]\n{variant}\n'
             '[variants.confidential]\ncss = ["a.css"]\n'
@@ -1505,13 +1706,18 @@ class FontTests(unittest.TestCase):
     def plan(self, profile, *, installed=None, name="one.md", format="pdf", **kwargs):
         stub = patch("quire.installed_font_families", return_value=installed)
         with stub as lookup:
-            target = str(self.root / name) if name.endswith(".md") else name  # else built-in
+            target = (
+                str(self.root / name) if name.endswith(".md") else name
+            )  # else built-in
             job = quire.plan_job(target, profile=profile, format=format, **kwargs)
         return job, lookup
 
     def run_main(self, *argv: str, cfg: quire.UserConfig | None = None) -> None:
         cfg = cfg or quire.UserConfig(default="", profiles={})
-        quire.main([str(self.root / "one.md"), str(self.root / "two.md"), *argv], user_config=cfg)
+        quire.main(
+            [str(self.root / "one.md"), str(self.root / "two.md"), *argv],
+            user_config=cfg,
+        )
 
     def test_fonts_parse_at_profile_and_variant_level(self) -> None:
         profile = self.profile('fonts = ["A", "B"]', 'fonts = ["C"]')
@@ -1527,8 +1733,11 @@ class FontTests(unittest.TestCase):
 
     def test_bad_fonts_are_errors(self) -> None:
         for top, variant in (
-            ('fonts = "A"', ""), ("fonts = [1]", ""), ("", 'fonts = "A"'),
-            ("", "fonts = [1, 2]"), ('fonts = [""]', ""),
+            ('fonts = "A"', ""),
+            ("fonts = [1]", ""),
+            ("", 'fonts = "A"'),
+            ("", "fonts = [1, 2]"),
+            ('fonts = [""]', ""),
         ):
             with self.subTest(top=top, variant=variant):
                 with self.assertRaisesRegex(SystemExit, "fonts"):
@@ -1545,7 +1754,9 @@ class FontTests(unittest.TestCase):
         self.assertFalse(list(self.root.glob("*.pdf")))
 
     def test_present_fonts_pass_case_insensitively(self) -> None:
-        profile = self.profile('fonts = ["brand sans", ".SF Georgian Rounded", "Sign-Painter"]')
+        profile = self.profile(
+            'fonts = ["brand sans", ".SF Georgian Rounded", "Sign-Painter"]'
+        )
         job, _ = self.plan(
             profile, installed={"Brand Sans", ".sf georgian rounded", "SIGN-Painter"}
         )
@@ -1595,19 +1806,22 @@ class FontTests(unittest.TestCase):
         self.profile('fonts = ["Missing"]')
         stderr = io.StringIO()
         error = quire.FontLookupError("fc-list is unavailable")
-        with patch("quire.installed_font_families", side_effect=error) as lookup, \
-                redirect_stderr(stderr), patch("quire.render"):
+        with patch(
+            "quire.installed_font_families", side_effect=error
+        ) as lookup, redirect_stderr(stderr), patch("quire.render"):
             self.run_main("--profile", str(self.profile_dir))
         self.assertEqual(lookup.call_count, 1)
         self.assertEqual(
-            stderr.getvalue(), "warning: fc-list is unavailable; profile fonts were not checked\n"
+            stderr.getvalue(),
+            "warning: fc-list is unavailable; profile fonts were not checked\n",
         )
 
     def test_timeout_has_its_own_warning(self) -> None:
         self.profile('fonts = ["Missing"]')
         stderr = io.StringIO()
-        with patch("quire.subprocess.run", side_effect=subprocess.TimeoutExpired("fc-list", 60)), \
-                redirect_stderr(stderr), patch("quire.render"):
+        with patch(
+            "quire.subprocess.run", side_effect=subprocess.TimeoutExpired("fc-list", 60)
+        ), redirect_stderr(stderr), patch("quire.render"):
             self.run_main("--profile", str(self.profile_dir))
         self.assertEqual(
             stderr.getvalue(),
@@ -1616,9 +1830,11 @@ class FontTests(unittest.TestCase):
 
     def test_batch_looks_up_once_and_fails_before_any_render(self) -> None:
         self.profile('fonts = ["Missing"]')
-        with patch("quire.installed_font_families", return_value={"Other"}) as lookup, \
-                patch("quire.render") as render, \
-                self.assertRaisesRegex(SystemExit, '"Missing"'):
+        with patch(
+            "quire.installed_font_families", return_value={"Other"}
+        ) as lookup, patch("quire.render") as render, self.assertRaisesRegex(
+            SystemExit, '"Missing"'
+        ):
             self.run_main("--profile", str(self.profile_dir))
         self.assertEqual(lookup.call_count, 1)
         render.assert_not_called()
@@ -1626,9 +1842,9 @@ class FontTests(unittest.TestCase):
     def font_error_name(self, *argv: str, cfg: quire.UserConfig, env=None) -> str:
         """Run main with no fonts installed; return the profile name in the error."""
         clean = {"QUIRE_CONFIG": "", "QUIRE_PROFILE": "", **(env or {})}
-        with patch.dict("os.environ", clean), \
-                patch("quire.installed_font_families", return_value=set()), \
-                self.assertRaisesRegex(SystemExit, "error: profile (\\S+) needs") as caught:
+        with patch.dict("os.environ", clean), patch(
+            "quire.installed_font_families", return_value=set()
+        ), self.assertRaisesRegex(SystemExit, "error: profile (\\S+) needs") as caught:
             self.run_main(*argv, cfg=cfg)
         return re.match("error: profile (\\S+) needs", str(caught.exception)).group(1)
 
@@ -1654,8 +1870,9 @@ class FontTests(unittest.TestCase):
         stderr = io.StringIO()
         env = {"QUIRE_CONFIG": "", "QUIRE_PROFILE": str(self.profile_dir)}
         error = quire.FontLookupError("fc-list is unavailable")
-        with patch.dict("os.environ", env), redirect_stderr(stderr), patch("quire.render"), \
-                patch("quire.installed_font_families", side_effect=error):
+        with patch.dict("os.environ", env), redirect_stderr(stderr), patch(
+            "quire.render"
+        ), patch("quire.installed_font_families", side_effect=error):
             self.run_main("--prefer-config", "nope")
         lines = stderr.getvalue().splitlines()
         self.assertTrue(lines[0].startswith("warning: preferred config 'nope'"))
@@ -1681,8 +1898,13 @@ class FontTests(unittest.TestCase):
         run, families = self.run_fc_list(return_value=done)
         self.assertEqual(
             families,
-            {"SignPainter", "SignPainter-HouseScript", ".SF Georgian Rounded",
-             "Foo, Bar: Baz\\Qux", "Spaced"},
+            {
+                "SignPainter",
+                "SignPainter-HouseScript",
+                ".SF Georgian Rounded",
+                "Foo, Bar: Baz\\Qux",
+                "Spaced",
+            },
         )
         self.assertEqual(
             run.call_args.args[0][1:], ["--format", "%{[]family{%{family}\\n}}"]
@@ -1694,10 +1916,14 @@ class FontTests(unittest.TestCase):
     def test_lookup_failures_raise(self) -> None:
         for kwargs, message in (
             ({"side_effect": FileNotFoundError()}, "fc-list is unavailable"),
-            ({"side_effect": subprocess.TimeoutExpired("fc-list", 1)},
-             "fc-list timed out after 60s"),
-            ({"return_value": subprocess.CompletedProcess([], 1, "Real Font\n", "")},
-             "fc-list failed"),
+            (
+                {"side_effect": subprocess.TimeoutExpired("fc-list", 1)},
+                "fc-list timed out after 60s",
+            ),
+            (
+                {"return_value": subprocess.CompletedProcess([], 1, "Real Font\n", "")},
+                "fc-list failed",
+            ),
         ):
             with self.subTest(message=message):
                 with self.assertRaisesRegex(quire.FontLookupError, message):
@@ -1707,9 +1933,13 @@ class FontTests(unittest.TestCase):
 class VersionTests(unittest.TestCase):
     def test_version_prints_without_reading_config(self) -> None:
         buf = io.StringIO()
-        with patch.dict("os.environ", {"QUIRE_PROG": "", "QUIRE_CONFIG": "", "QUIRE_PROFILE": ""}), \
-                patch.object(quire, "load_user_config", side_effect=AssertionError("config")), \
-                redirect_stdout(buf):
+        with patch.dict(
+            "os.environ", {"QUIRE_PROG": "", "QUIRE_CONFIG": "", "QUIRE_PROFILE": ""}
+        ), patch.object(
+            quire, "load_user_config", side_effect=AssertionError("config")
+        ), redirect_stdout(
+            buf
+        ):
             quire.main(["--version"])
         self.assertEqual(buf.getvalue(), "quire 1.1.1\n")
 

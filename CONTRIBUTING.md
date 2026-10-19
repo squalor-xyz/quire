@@ -10,6 +10,7 @@ installation is needed to run them.
 | `quire.py` | Load profiles, prepare Markdown, plan jobs, and invoke Pandoc |
 | `install.py` | Set up the runtime, write launchers, and register profiles |
 | `plain.css` | Default PDF styling |
+| `.flake8` | flake8 settings for black compatibility: 88 columns, E203/W503 ignored |
 | `test_quire.py` | Isolated unit tests with temporary profile assets |
 | `requirements.txt` | WeasyPrint dependency |
 | `quire_html.py`, `quire_mermaid.py`, `quire_pdf.py` | Resource embedding, diagrams, and PDF layout |
@@ -27,7 +28,11 @@ Run from the repository root:
 
 ```sh
 python3 test_quire.py
+black --check quire.py test_quire.py
+flake8 quire.py test_quire.py
 ```
+
+The black and flake8 checks cover `quire.py` and `test_quire.py` only.
 
 Tests create and clean temporary directories inside the checkout. They exercise
 profile selection, Markdown preparation, output planning, configuration, and

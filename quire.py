@@ -141,7 +141,10 @@ def weasyprint_python(weasy: str) -> Path:
     """
     weasy_path = Path(weasy)
     venv_python = ENGINE_DIR / ".venv" / "bin" / "python"
-    if weasy_path == ENGINE_DIR / ".venv" / "bin" / "weasyprint" and venv_python.is_file():
+    if (
+        weasy_path == ENGINE_DIR / ".venv" / "bin" / "weasyprint"
+        and venv_python.is_file()
+    ):
         return venv_python
     try:
         with weasy_path.open("rb") as handle:
@@ -216,14 +219,22 @@ def _load_mermaid(raw: object) -> dict:
         raise SystemExit("error: mermaid must be a table")
     unknown = set(raw) - {"theme", "font_family", "theme_variables"}
     if unknown:
-        raise SystemExit(f"error: unknown mermaid settings: {', '.join(sorted(unknown))}")
+        raise SystemExit(
+            f"error: unknown mermaid settings: {', '.join(sorted(unknown))}"
+        )
     result = {}
     for key, target in (("theme", "theme"), ("font_family", "fontFamily")):
         if key in raw:
             if not isinstance(raw[key], str) or not raw[key].strip():
                 raise SystemExit(f"error: mermaid {key} must be a nonempty string")
             result[target] = raw[key]
-    if "theme" in result and result["theme"] not in {"default", "neutral", "dark", "forest", "base"}:
+    if "theme" in result and result["theme"] not in {
+        "default",
+        "neutral",
+        "dark",
+        "forest",
+        "base",
+    }:
         raise SystemExit("error: unsupported Mermaid theme")
     variables = raw.get("theme_variables", {})
     if not isinstance(variables, dict) or not all(
@@ -297,7 +308,9 @@ def load_profile(path: Path) -> Profile:
             raise SystemExit("error: resource_root must be a string")
         resource_root = _resolve_under(root, data["resource_root"])
         if not resource_root.is_dir():
-            raise SystemExit(f"error: resource_root is not a directory: {resource_root}")
+            raise SystemExit(
+                f"error: resource_root is not a directory: {resource_root}"
+            )
 
     variants_raw = data.get("variants", {})
     if not isinstance(variants_raw, dict) or not variants_raw:
@@ -356,7 +369,11 @@ def installed_font_families() -> set[str]:
     cmd = ["fc-list", "--format", "%{[]family{%{family}\\n}}"]
     try:
         done = subprocess.run(
-            cmd, capture_output=True, text=True, encoding="utf-8", errors="replace",
+            cmd,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
             timeout=FONT_LIST_TIMEOUT,
         )
     except subprocess.TimeoutExpired as exc:
@@ -382,7 +399,9 @@ class FontCheck:
             try:
                 self._families = {name.casefold() for name in installed_font_families()}
             except FontLookupError as exc:
-                print(f"warning: {exc}; profile fonts were not checked", file=sys.stderr)
+                print(
+                    f"warning: {exc}; profile fonts were not checked", file=sys.stderr
+                )
         if self._families is None:
             return
         for font in fonts:
@@ -415,7 +434,10 @@ def plain_confidential_variant() -> Variant:
 
 
 def flags_for_builtin(variant: str) -> tuple[bool, bool]:
-    """Built-in variant forces letterhead and/or confidential. CLI flags can add either."""
+    """Built-in variant forces letterhead and/or confidential.
+
+    CLI flags can add either.
+    """
     if variant == "default":
         return False, False
     if variant == "letterhead":
@@ -450,10 +472,10 @@ def ensure_front_matter(md_text: str, keys: list[str], metadata: dict[str, str])
         if not extra:
             return md_text
         block = block.rstrip() + "\n" + "\n".join(extra) + "\n"
-        return md_text[:opener] + block + md_text[closer + 1:]
+        return md_text[:opener] + block + md_text[closer + 1 :]
     bom = "﻿" if md_text.startswith("﻿") else ""
     lines = [f"{key}: {metadata.get(key, 'true')}" for key in keys]
-    return bom + "---\n" + "\n".join(lines) + "\n---\n\n" + md_text[len(bom):]
+    return bom + "---\n" + "\n".join(lines) + "\n---\n\n" + md_text[len(bom) :]
 
 
 def include_applies(spec: Include, body: str) -> bool:
@@ -566,7 +588,9 @@ def prepare_markdown(
         if not extra_prefixes:
             return md_text
         return apply_includes(md_text, [], extra_prefixes)
-    text = ensure_front_matter(md_text, variant.ensure_in_front_matter, variant.metadata)
+    text = ensure_front_matter(
+        md_text, variant.ensure_in_front_matter, variant.metadata
+    )
     return apply_includes(text, variant.includes, extra_prefixes, verbatim)
 
 
@@ -628,7 +652,9 @@ def plan_job(
     work = (cwd or Path.cwd()).resolve()
     source, builtin = resolve_source(target, profile, work)
     if builtin is None and source.suffix.lower() not in {".md", ".markdown", ".txt"}:
-        raise SystemExit("error: target must be a .md, .markdown, or .txt file or a built-in name")
+        raise SystemExit(
+            "error: target must be a .md, .markdown, or .txt file or a built-in name"
+        )
 
     if builtin is not None:
         forced_letterhead, forced_confidential = flags_for_builtin(builtin.variant)
@@ -649,7 +675,8 @@ def plan_job(
         variant = plain_confidential_variant()
 
     output_format = format or (
-        output.suffix.lower()[1:] if output and output.suffix.lower() in {".pdf", ".html"}
+        output.suffix.lower()[1:]
+        if output and output.suffix.lower() in {".pdf", ".html"}
         else "pdf"
     )
     if output_format not in {"pdf", "html"}:
@@ -695,7 +722,8 @@ def plan_job(
     if not no_css:
         css_files.extend(checked(raw) for raw in add_css or [])
 
-    # Only PDF embeds installed fonts; HTML leaves the font choice to the reader's machine.
+    # Only PDF embeds installed fonts; HTML leaves the font choice to the reader's
+    # machine.
     if profile is not None and variant is not None and output_format == "pdf":
         fonts = variant.fonts if variant.fonts is not None else profile.fonts
         if fonts:
@@ -709,7 +737,9 @@ def plan_job(
 
     roots: list[Path] = []
     if resource_path is not None:
-        roots.append(resource_path if resource_path.is_absolute() else work / resource_path)
+        roots.append(
+            resource_path if resource_path.is_absolute() else work / resource_path
+        )
     elif profile is not None and profile.resource_root is not None:
         roots.append(profile.resource_root)
     else:
@@ -723,8 +753,14 @@ def plan_job(
     job_cwd = roots[0]
     metadata = dict(variant.metadata) if variant is not None else {}
     mermaid = {"theme": "neutral", "fontFamily": "Helvetica, Arial, sans-serif"}
-    for settings in (profile.mermaid if profile else {}, variant.mermaid if variant else {}):
-        variables = {**mermaid.get("themeVariables", {}), **settings.get("themeVariables", {})}
+    for settings in (
+        profile.mermaid if profile else {},
+        variant.mermaid if variant else {},
+    ):
+        variables = {
+            **mermaid.get("themeVariables", {}),
+            **settings.get("themeVariables", {}),
+        }
         mermaid.update(settings)
         if variables:
             mermaid["themeVariables"] = variables
@@ -762,28 +798,50 @@ def pandoc_env(weasy: str) -> dict[str, str]:
         brew_lib = Path("/usr/local/lib")
     if brew_lib.is_dir():
         prev = env.get("DYLD_FALLBACK_LIBRARY_PATH", "")
-        env["DYLD_FALLBACK_LIBRARY_PATH"] = str(brew_lib) + (os.pathsep + prev if prev else "")
+        env["DYLD_FALLBACK_LIBRARY_PATH"] = str(brew_lib) + (
+            os.pathsep + prev if prev else ""
+        )
     return env
 
 
-def _run(cmd: list[str], job: Job, *, input: str | None = None,
-         env: dict[str, str] | None = None) -> str:
+def _run(
+    cmd: list[str],
+    job: Job,
+    *,
+    input: str | None = None,
+    env: dict[str, str] | None = None,
+) -> str:
     if job.verbose:
         print("running:", shlex.join(cmd), file=sys.stderr)
     try:
-        result = subprocess.run(cmd, input=input, capture_output=True, text=True,
-                                check=True, cwd=str(job.cwd), env=env)
+        result = subprocess.run(
+            cmd,
+            input=input,
+            capture_output=True,
+            text=True,
+            check=True,
+            cwd=str(job.cwd),
+            env=env,
+        )
     except (OSError, subprocess.CalledProcessError) as exc:
-        detail = exc.stderr.strip() if isinstance(exc, subprocess.CalledProcessError) else str(exc)
+        detail = (
+            exc.stderr.strip()
+            if isinstance(exc, subprocess.CalledProcessError)
+            else str(exc)
+        )
         raise SystemExit(f"error: {Path(cmd[0]).name} failed: {detail}") from exc
     if result.stderr.strip():
         print(result.stderr.strip(), file=sys.stderr)
     return result.stdout
 
 
-PAGE_BREAK_TEX = re.compile(r"\\(?:newpage|pagebreak|clearpage)(?:\[[^\]]*\])?(?:\{\})?")
-PAGE_BREAK_CSS = (".quire-page-break { break-after:page; page-break-after:always; } "
-                  "span.quire-page-break { display:block; height:0; }")
+PAGE_BREAK_TEX = re.compile(
+    r"\\(?:newpage|pagebreak|clearpage)(?:\[[^\]]*\])?(?:\{\})?"
+)
+PAGE_BREAK_CSS = (
+    ".quire-page-break { break-after:page; page-break-after:always; } "
+    "span.quire-page-break { display:block; height:0; }"
+)
 
 
 def convert_raw_tex(node, dropped: list[str]) -> None:
@@ -794,8 +852,11 @@ def convert_raw_tex(node, dropped: list[str]) -> None:
     """
     if isinstance(node, list):
         for child in list(node):
-            if (isinstance(child, dict) and child.get("t") in ("RawBlock", "RawInline")
-                    and child["c"][0] in ("tex", "latex")):
+            if (
+                isinstance(child, dict)
+                and child.get("t") in ("RawBlock", "RawInline")
+                and child["c"][0] in ("tex", "latex")
+            ):
                 text = child["c"][1]
                 if PAGE_BREAK_TEX.fullmatch(text.strip()):
                     tag = "div" if child["t"] == "RawBlock" else "span"
@@ -806,8 +867,11 @@ def convert_raw_tex(node, dropped: list[str]) -> None:
                     node.remove(child)
             else:
                 convert_raw_tex(child, dropped)
-                if (isinstance(child, dict) and child.get("t") in ("Para", "Plain")
-                        and child["c"] == []):
+                if (
+                    isinstance(child, dict)
+                    and child.get("t") in ("Para", "Plain")
+                    and child["c"] == []
+                ):
                     node.remove(child)
     elif isinstance(node, dict):
         for child in node.values():
@@ -820,10 +884,14 @@ def render(job: Job) -> None:
 
     pandoc = which_pandoc()
     if not pandoc:
-        raise SystemExit("error: missing pandoc; install it before building PDF or HTML")
+        raise SystemExit(
+            "error: missing pandoc; install it before building PDF or HTML"
+        )
     weasy = resolve_weasyprint() if job.format == "pdf" else None
     if job.format == "pdf" and not weasy:
-        raise SystemExit("error: missing WeasyPrint; run python3 install.py\n" + INSTALL_HELP)
+        raise SystemExit(
+            "error: missing WeasyPrint; run python3 install.py\n" + INSTALL_HELP
+        )
 
     roots = [Path(path) for path in job.resource_path.split(os.pathsep)]
     resources = Resources(roots)
@@ -835,17 +903,27 @@ def render(job: Job) -> None:
             css.append(resources.css(path.read_text(encoding="utf-8"), path.parent))
         finally:
             resources.active.remove(path.resolve())
+
     def parse(text):
-        return json.loads(_run([pandoc, "-f", "markdown", "-t", "json"], job, input=text))
+        return json.loads(
+            _run([pandoc, "-f", "markdown", "-t", "json"], job, input=text)
+        )
 
     ast = parse(job.markdown)
-    locations = source_locations(job, parse) if not job.no_mermaid and any(code_blocks(ast)) else None
+    locations = (
+        source_locations(job, parse)
+        if not job.no_mermaid and any(code_blocks(ast))
+        else None
+    )
     dropped: list[str] = []
     convert_raw_tex(ast["blocks"], dropped)
     convert_raw_tex(ast.get("meta", {}), dropped)
     if dropped:
-        print(f"warning: {job.source}: dropped raw TeX (including {dropped[0]}); "
-              "only \\newpage, \\pagebreak, and \\clearpage are converted", file=sys.stderr)
+        print(
+            f"warning: {job.source}: dropped raw TeX (including {dropped[0]}); "
+            "only \\newpage, \\pagebreak, and \\clearpage are converted",
+            file=sys.stderr,
+        )
     has_diagrams = render_blocks(ast, job, "\n".join(css), locations=locations)
     cmd = [pandoc, "-f", "json", "-t", "html5", "--standalone", "--metadata", "lang=en"]
     if "title" not in ast.get("meta", {}) and "pagetitle" not in ast.get("meta", {}):
@@ -860,28 +938,45 @@ def render(job: Job) -> None:
     # First in the head, so a stylesheet can override the rule.
     document = document.replace("<head>", f"<head>\n<style>{PAGE_BREAK_CSS}</style>", 1)
     if has_diagrams:
-        family = "".join(char for char in job.mermaid.get("fontFamily", "") if char not in "<>{}")
+        family = "".join(
+            char for char in job.mermaid.get("fontFamily", "") if char not in "<>{}"
+        )
         family = family or "Helvetica, Arial, sans-serif"
-        safety = ('<style>.quire-diagram { break-inside:avoid; page-break-inside:avoid; '
-                  'break-before:avoid; page-break-before:avoid; '
-                  'max-width:100%; margin:1em 0; line-height:0; } '
-                  '.quire-diagram > svg { display:block; max-width:100%; height:auto; } '
-                  f'.quire-diagram text {{ font-family:{family}; }}</style>')
+        safety = (
+            "<style>.quire-diagram { break-inside:avoid; page-break-inside:avoid; "
+            "break-before:avoid; page-break-before:avoid; "
+            "max-width:100%; margin:1em 0; line-height:0; } "
+            ".quire-diagram > svg { display:block; max-width:100%; height:auto; } "
+            f".quire-diagram text {{ font-family:{family}; }}</style>"
+        )
         document = document.replace("</head>", safety + "\n</head>", 1)
     if job.format == "html":
-        policy = ("default-src 'none'; img-src data:; style-src 'unsafe-inline' data:; "
-                  "font-src data:; media-src data:; base-uri 'none'; form-action 'none'")
-        document = document.replace("<head>", '<head>\n<meta http-equiv="Content-Security-Policy" '
-                                    f'content="{policy}">', 1)
+        policy = (
+            "default-src 'none'; img-src data:; style-src 'unsafe-inline' data:; "
+            "font-src data:; media-src data:; base-uri 'none'; form-action 'none'"
+        )
+        document = document.replace(
+            "<head>",
+            '<head>\n<meta http-equiv="Content-Security-Policy" '
+            f'content="{policy}">',
+            1,
+        )
     job.output.parent.mkdir(parents=True, exist_ok=True)
-    with tempfile.TemporaryDirectory(prefix=".quire-", dir=job.output.parent) as temporary:
+    with tempfile.TemporaryDirectory(
+        prefix=".quire-", dir=job.output.parent
+    ) as temporary:
         folder = Path(temporary)
         prepared = folder / "document.html"
         prepared.write_text(document, encoding="utf-8")
         if job.format == "pdf":
             interpreter = weasyprint_python(weasy)
             result = folder / "document.pdf"
-            cmd = [str(interpreter), str(ENGINE_DIR / "quire_pdf.py"), str(prepared), str(result)]
+            cmd = [
+                str(interpreter),
+                str(ENGINE_DIR / "quire_pdf.py"),
+                str(prepared),
+                str(result),
+            ]
             if job.verbose:
                 cmd.append("--verbose")
             _run(cmd, job, env=pandoc_env(weasy))
@@ -934,11 +1029,15 @@ def load_user_config(path: Path | None = None) -> UserConfig:
 def unknown_config_message(
     cfg: UserConfig, name: str, source: str = "", kind: str = "error"
 ) -> str:
-    """Say a config name is not registered, where it was looked up, and how to fix it."""
+    """Say a config name is not registered, where it was looked up, and how to
+    fix it.
+    """
     known = ", ".join(sorted(cfg.profiles)) or "(none)"
     origin = f" from {source}" if source else ""
     if kind == "warning":
-        lines = [f"warning: preferred config {name!r} is not registered (known: {known})"]
+        lines = [
+            f"warning: preferred config {name!r} is not registered (known: {known})"
+        ]
     else:
         lines = [f"error: unknown config {name!r}{origin} (known: {known})"]
     if cfg.path is not None:
@@ -965,7 +1064,9 @@ def _check_config_profile(path: Path, cfg: UserConfig | None) -> None:
     """Name the config when its registered profile has gone missing."""
     if cfg is None:
         return
-    names = sorted(name for name, registered in cfg.profiles.items() if registered == path)
+    names = sorted(
+        name for name, registered in cfg.profiles.items() if registered == path
+    )
     if not names:
         return
     resolved = path.expanduser()
@@ -996,7 +1097,8 @@ def _parser(
     parser.add_argument(
         "target",
         nargs="+",
-        help="Paths to .md or .txt files, or built-in names from the profile." + builtin_help,
+        help="Paths to .md or .txt files, or built-in names from the profile."
+        + builtin_help,
     )
     known = ""
     if user_config and user_config.profiles:
@@ -1044,19 +1146,34 @@ def _parser(
         "--output",
         type=Path,
         default=None,
-        help="Output path; .html or .pdf selects the format (default: PDF beside the source)",
+        help=(
+            "Output path; .html or .pdf selects the format "
+            "(default: PDF beside the source)"
+        ),
     )
-    parser.add_argument("--format", choices=("html", "pdf"), default=None,
-                        help="Output format; overrides the output extension")
-    parser.add_argument("--no-mermaid", action="store_true",
-                        help="Keep Mermaid diagrams as code blocks")
-    parser.add_argument("-v", "--verbose", action="store_true",
-                        help="Print commands, diagram rendering, and cache hits to stderr")
+    parser.add_argument(
+        "--format",
+        choices=("html", "pdf"),
+        default=None,
+        help="Output format; overrides the output extension",
+    )
+    parser.add_argument(
+        "--no-mermaid", action="store_true", help="Keep Mermaid diagrams as code blocks"
+    )
+    parser.add_argument(
+        "-v",
+        "--verbose",
+        action="store_true",
+        help="Print commands, diagram rendering, and cache hits to stderr",
+    )
     parser.add_argument(
         "--resource-path",
         type=Path,
         default=None,
-        help="Pandoc resource root (default: profile resource_root, else the working directory)",
+        help=(
+            "Pandoc resource root "
+            "(default: profile resource_root, else the working directory)"
+        ),
     )
     parser.add_argument(
         "--css",
@@ -1114,7 +1231,9 @@ def resolve_profile_arg(
         return default_profile
     if no_config:
         return None
-    cfg = user_config if user_config is not None else UserConfig(default="", profiles={})
+    cfg = (
+        user_config if user_config is not None else UserConfig(default="", profiles={})
+    )
     env = os.environ if environ is None else environ
     used = selected if selected is not None else []
     if config_name is not None:
@@ -1171,8 +1290,10 @@ def check_mermaid(jobs: list[Job]) -> None:
             (path, line)
             for job in jobs
             if not job.no_mermaid
-            for path, text in [(job.source, job.original_markdown or job.markdown),
-                               *job.include_sources]
+            for path, text in [
+                (job.source, job.original_markdown or job.markdown),
+                *job.include_sources,
+            ]
             for _, line in fence_locations(text)
             if not is_indented_code(text, line)
         ),
@@ -1203,7 +1324,12 @@ def main(
         print(f"{prog} {__version__}")
         return
     # build.py pins a profile and does not grow these subcommands.
-    if default_profile is None and args_in[:1] in (["install"], ["configs"], ["default"], ["remove"]):
+    if default_profile is None and args_in[:1] in (
+        ["install"],
+        ["configs"],
+        ["default"],
+        ["remove"],
+    ):
         import install as quire_install
 
         if args_in[0] == "install":
@@ -1216,8 +1342,10 @@ def main(
             quire_install.cmd_configs(args_in[1:])
         return
     # build.py pins a profile and does not consult the home config.
-    cfg = None if default_profile is not None else (
-        user_config if user_config is not None else load_user_config()
+    cfg = (
+        None
+        if default_profile is not None
+        else (user_config if user_config is not None else load_user_config())
     )
     pre = argparse.ArgumentParser(prog=prog, add_help=False)
     pre.add_argument("--profile", type=Path, default=None)
@@ -1226,7 +1354,8 @@ def main(
     named.add_argument("--prefer-config", type=config_name_arg, default=None)
     pre.add_argument("--no-config", action="store_true")
     known, _rest = pre.parse_known_args(args_in)
-    # Held back so --help and argparse errors stay quiet; a fallback error still shows it.
+    # Held back so --help and argparse errors stay quiet; a fallback error still
+    # shows it.
     pending: list[str] = []
     try:
         profile_path = resolve_profile_arg(
@@ -1307,7 +1436,8 @@ def main(
     for job in jobs:
         if job.output in sources:
             raise SystemExit(
-                f"error: {sources[job.output]} and {job.source} would both write {job.output}"
+                f"error: {sources[job.output]} and {job.source} "
+                f"would both write {job.output}"
             )
         sources[job.output] = job.source
     check_mermaid(jobs)

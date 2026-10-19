@@ -709,7 +709,7 @@
       "id": "s19",
       "title": "Bring quire.py and test_quire.py to black and flake8 clean",
       "short_title": "Bring quire.py and test_quire.py to black and flake8 clean",
-      "status": "open",
+      "status": "done",
       "has_slice": false,
       "depends_on": [],
       "note_records": [
@@ -719,6 +719,17 @@
           "text": "**2026-10-15** — Found in the s17 relay. At da427ee, black --check fails on quire.py and test_quire.py, and flake8 reports about 89 issues in quire.py and 193 in test_quire.py (mostly E501 in the existing style). s17 added 5 more E501. Global rules call for black formatting and flake8-clean CI. Do it as a format-only change with no behavior edits, so review is mechanical. Check: black --check and flake8 clean on both files; python3 test_quire.py unchanged.",
           "created_at": "2026-10-15T17:25:36Z",
           "attempt": 0,
+          "by": "Jon Robbins",
+          "verified_by": "",
+          "verified_at": "",
+          "stale_after": ""
+        },
+        {
+          "id": "7ced1ff4-eb34-44e9-8824-99eebcb55d3f",
+          "kind": "",
+          "text": "**2026-10-19** — Verified: black --check and flake8 (new .flake8: 88 cols, E203/W503 ignored) clean on quire.py and test_quire.py; python3 test_quire.py Ran 141 OK (unchanged); AST identical to HEAD modulo docstring whitespace; docs list .flake8 and the lint commands. Gate VERDICT: PASS.",
+          "created_at": "2026-10-19T15:02:05Z",
+          "attempt": 1,
           "by": "Jon Robbins",
           "verified_by": "",
           "verified_at": "",
@@ -744,7 +755,7 @@
         "importance": 2,
         "urgency": 1,
         "effort": 2,
-        "attempts": 0
+        "attempts": 1
       }
     }
   ],
