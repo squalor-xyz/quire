@@ -11,6 +11,8 @@ do not inspect a parent checkout or depend on its layout.
 - `plain.css`: unbranded default stylesheet.
 - `plain-confidential.css`: the same treatment plus a running Confidential
   mark, used when `--confidential` is set and no profile is selected.
+- `.flake8`: flake8 settings for black compatibility (88 columns, E203/W503
+  ignored).
 - `test_quire.py`: stdlib unittest suite with temporary, generic profiles.
 - `requirements.txt`: WeasyPrint, the only direct pip dependency.
 - `quire_html.py`, `quire_mermaid.py`, `quire_pdf.py`: offline resource embedding,
@@ -42,7 +44,11 @@ From the repository root:
 
 ```sh
 python3 test_quire.py
+black --check quire.py test_quire.py
+flake8 quire.py test_quire.py
 ```
+
+The black and flake8 checks cover `quire.py` and `test_quire.py` only.
 
 Tests use temporary directories inside this checkout and explicit config/bin
 paths. They need neither a brand profile nor PDF tools. Keep new tests isolated
