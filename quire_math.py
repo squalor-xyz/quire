@@ -17,18 +17,10 @@ import tempfile
 from pathlib import Path
 from xml.etree import ElementTree as ET
 
-from quire_mermaid import SVG_NS, prefix_svg, validate_svg
+from quire_common import SVG_NS, cache_directory, prefix_svg, validate_svg
 
 NORMALIZATION_VERSION = 2
 ENGINE_DIR = Path(__file__).resolve().parent
-
-
-def cache_directory() -> Path:
-    if os.environ.get("XDG_CACHE_HOME"):
-        root = Path(os.environ["XDG_CACHE_HOME"])
-    else:
-        root = Path.home() / ".cache"
-    return root / "quire" / "math"
 
 
 def renderer_available(engine: Path = ENGINE_DIR) -> bool:
@@ -74,7 +66,7 @@ class MathRenderer:
     def __init__(self, engine: Path, verbose: bool, cache: Path | None = None):
         self.engine = engine
         self.verbose = verbose
-        self.cache = cache if cache is not None else cache_directory()
+        self.cache = cache if cache is not None else cache_directory("math")
         self.node = shutil.which("node")
         self.worker = engine / "mathjax-render.mjs"
         require_renderer(engine)

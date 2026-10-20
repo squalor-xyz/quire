@@ -15,6 +15,8 @@ do not inspect a parent checkout or depend on its layout.
   ignored).
 - `test_quire.py`: stdlib unittest suite with temporary, generic profiles.
 - `requirements.txt`: WeasyPrint, the only direct pip dependency.
+- `quire_common.py`: SVG validation/ID prefixing and cache location shared by the
+  Mermaid and math renderers.
 - `quire_html.py`, `quire_mermaid.py`, `quire_pdf.py`: offline resource embedding,
   diagram rendering/cache, and PDF page fitting.
 - `quire_math.py`, `mathjax-render.mjs`: TeX math to inline SVG through the

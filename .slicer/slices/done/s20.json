@@ -1,0 +1,39 @@
+{
+  "id": "s20",
+  "title": "Move shared SVG and cache helpers from quire_mermaid into a common module",
+  "lead": [],
+  "depends_note": null,
+  "findings_note": "",
+  "size": "S",
+  "flags": [],
+  "trees_note": "core",
+  "trees_plural": false,
+  "boundary": "Not in this slice: any behavior change, cache layout change, or edits to quire.py and test_quire.py.",
+  "sections": [
+    {
+      "heading": "Why",
+      "body": "quire_math imports SVG_NS, prefix_svg and validate_svg from quire_mermaid, and both renderers carry their own copy of the XDG cache-root logic. Shared helpers belong in a neutral module."
+    },
+    {
+      "heading": "Files",
+      "body": "- quire_common.py (new)\n- quire_mermaid.py, quire_math.py\n- test_render.py, test_render_integration.py\n- AGENTS.md, CONTRIBUTING.md"
+    },
+    {
+      "heading": "Failing tests",
+      "body": "1. test_render imports validate_svg and prefix_svg from quire_common.\n2. A cache_directory(name) test covers XDG and home roots."
+    },
+    {
+      "heading": "Implement",
+      "body": "Move SVG_NS, validate_svg, prefix_svg to quire_common; add cache_directory(name); mermaid and math import them."
+    },
+    {
+      "heading": "Check",
+      "body": "python3 test_quire.py; black/flake8 on touched files."
+    },
+    {
+      "heading": "Git",
+      "body": ""
+    }
+  ],
+  "notes": []
+}
