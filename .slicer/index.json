@@ -2,7 +2,7 @@
   "version": 9,
   "id_prefix": "s",
   "id_width": 2,
-  "next_id": 20,
+  "next_id": 22,
   "preamble": "",
   "passes": [],
   "items": [
@@ -767,6 +767,90 @@
         "urgency": 1,
         "effort": 2,
         "attempts": 1
+      }
+    },
+    {
+      "id": "s20",
+      "title": "Move shared SVG and cache helpers from quire_mermaid into a common module",
+      "short_title": "Move shared SVG and cache helpers from quire_mermaid into a common module",
+      "status": "open",
+      "has_slice": false,
+      "depends_on": [],
+      "note_records": [
+        {
+          "id": "6508fb04-4485-4c76-a8e0-5ef6813332bb",
+          "kind": "",
+          "text": "**2026-10-20** — Found in the s12 relay (architect).",
+          "created_at": "2026-10-20T17:01:03Z",
+          "attempt": 0,
+          "by": "Jon Robbins",
+          "verified_by": "",
+          "verified_at": "",
+          "stale_after": ""
+        }
+      ],
+      "claim": null,
+      "fields": {
+        "size": "S",
+        "flags": [],
+        "trees": [
+          "core"
+        ],
+        "trees_literal": false,
+        "findings": "",
+        "discovered_from": "s12",
+        "parent": "",
+        "cites": [],
+        "key": "",
+        "pass": "",
+        "group": "",
+        "reason": "",
+        "importance": 1,
+        "urgency": 1,
+        "effort": 2,
+        "attempts": 0
+      }
+    },
+    {
+      "id": "s21",
+      "title": "Don't warn on dropped raw TeX that only defines macros Pandoc already expanded",
+      "short_title": "Don't warn on dropped raw TeX that only defines macros Pandoc already expanded",
+      "status": "open",
+      "has_slice": false,
+      "depends_on": [],
+      "note_records": [
+        {
+          "id": "a1c225df-50b6-42b6-8704-521b3fd21e0a",
+          "kind": "",
+          "text": "**2026-10-20** — Found in the s12 relay (architect).",
+          "created_at": "2026-10-20T17:01:03Z",
+          "attempt": 0,
+          "by": "Jon Robbins",
+          "verified_by": "",
+          "verified_at": "",
+          "stale_after": ""
+        }
+      ],
+      "claim": null,
+      "fields": {
+        "size": "S",
+        "flags": [],
+        "trees": [
+          "core"
+        ],
+        "trees_literal": false,
+        "findings": "G5",
+        "discovered_from": "s12",
+        "parent": "",
+        "cites": [],
+        "key": "",
+        "pass": "",
+        "group": "",
+        "reason": "",
+        "importance": 2,
+        "urgency": 1,
+        "effort": 1,
+        "attempts": 0
       }
     }
   ],
