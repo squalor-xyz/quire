@@ -773,8 +773,8 @@
       "id": "s20",
       "title": "Move shared SVG and cache helpers from quire_mermaid into a common module",
       "short_title": "Move shared SVG and cache helpers from quire_mermaid into a common module",
-      "status": "open",
-      "has_slice": false,
+      "status": "done",
+      "has_slice": true,
       "depends_on": [],
       "note_records": [
         {
@@ -808,7 +808,7 @@
         "importance": 1,
         "urgency": 1,
         "effort": 2,
-        "attempts": 0
+        "attempts": 1
       }
     },
     {

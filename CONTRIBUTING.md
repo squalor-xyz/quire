@@ -13,6 +13,7 @@ installation is needed to run them.
 | `.flake8` | flake8 settings for black compatibility: 88 columns, E203/W503 ignored |
 | `test_quire.py` | Isolated unit tests with temporary profile assets |
 | `requirements.txt` | WeasyPrint dependency |
+| `quire_common.py` | SVG validation, ID prefixing, and cache location shared by the renderers |
 | `quire_html.py`, `quire_mermaid.py`, `quire_pdf.py` | Resource embedding, diagrams, and PDF layout |
 | `quire_math.py` | TeX math rendering to inline SVG, with cache and AST substitution |
 | `mermaid-render.mjs` | Offline browser worker and SVG label normalization |

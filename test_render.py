@@ -17,7 +17,8 @@ import install
 import quire
 import quire_math
 from quire_html import Resources
-from quire_mermaid import MermaidRenderer, annotated_fences, fence_locations, prefix_svg, render_blocks, validate_svg
+from quire_common import cache_directory, prefix_svg, validate_svg
+from quire_mermaid import MermaidRenderer, annotated_fences, fence_locations, render_blocks
 from quire_pdf import diagram_height_ratio
 
 ROOT = Path(__file__).parent
@@ -353,6 +354,16 @@ class MermaidTests(unittest.TestCase):
                         '<svg viewBox="0 0 10 10"><foreignObject/></svg>'):
             with self.subTest(invalid=invalid), self.assertRaises(ValueError):
                 validate_svg(invalid)
+
+    def test_cache_directory_honors_xdg_and_names_the_subdirectory(self):
+        with patch.dict(os.environ, {"XDG_CACHE_HOME": str(self.root)}):
+            self.assertEqual(cache_directory("math"), self.root / "quire" / "math")
+        with patch.dict(os.environ, {}, clear=False) as env:
+            env.pop("XDG_CACHE_HOME", None)
+            with patch("quire_common.Path.home", return_value=self.root):
+                self.assertEqual(
+                    cache_directory("mermaid"), self.root / ".cache/quire/mermaid"
+                )
 
     def test_cache_hits_invalid_entries_and_theme_changes(self):
         engine = self.root / "engine"
