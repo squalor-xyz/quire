@@ -841,6 +841,15 @@ def _run(
 PAGE_BREAK_TEX = re.compile(
     r"\\(?:newpage|pagebreak|clearpage)(?:\[[^\]]*\])?(?:\{\})?"
 )
+# The head of a macro definition that Pandoc already expanded: \newcommand{\x}[n],
+# \def\x#1, \DeclareMathOperator*{\x}. The brace-balanced body follows it.
+DEFINITION_HEAD = re.compile(
+    r"(?:\\(?:(?:new|renew|provide)command|DeclareMathOperator)\*?\s*"
+    r"(?:\{\s*\\(?:[A-Za-z@]+|.)\s*\}|\\(?:[A-Za-z@]+|.))(?:\s*\[[^\]]*\]){0,2}"
+    r"|\\g?def\s*\\(?:[A-Za-z@]+|.)(?:#\d)*)\s*",
+    re.S,
+)
+TEX_BRACE = re.compile(r"\\.|[{}]", re.S)
 PAGE_BREAK_CSS = (
     ".quire-page-break { break-after:page; page-break-after:always; } "
     "span.quire-page-break { display:block; height:0; }"
@@ -872,6 +881,37 @@ def plain_text(node) -> str:
     return plain_text(content)
 
 
+def balanced_group(text: str, start: int) -> int | None:
+    """End of the {...} group that begins at `start`, or None if it is not closed."""
+    if text[start : start + 1] != "{":
+        return None
+    depth = 0
+    for token in TEX_BRACE.finditer(text, start):
+        depth += {"{": 1, "}": -1}.get(token.group(), 0)
+        if depth == 0:
+            return token.end()
+    return None
+
+
+def without_definitions(text: str) -> str:
+    """Raw TeX with macro definitions and comments removed."""
+    rest = []
+    i = 0
+    while i < len(text):
+        head = DEFINITION_HEAD.match(text, i)
+        end = balanced_group(text, head.end()) if head else None
+        if end is not None:
+            i = end
+        elif text[i] == "%":
+            newline = text.find("\n", i)
+            i = newline if newline >= 0 else len(text)
+        else:
+            width = 2 if text[i] == "\\" else 1
+            rest.append(text[i : i + width])
+            i += width
+    return "".join(rest).strip()
+
+
 def convert_raw_tex(node, dropped: list[str]) -> None:
     """Turn page-break TeX into raw HTML and drop other raw TeX, in place.
 
@@ -885,13 +925,18 @@ def convert_raw_tex(node, dropped: list[str]) -> None:
                 and child.get("t") in ("RawBlock", "RawInline")
                 and child["c"][0] in ("tex", "latex")
             ):
-                text = child["c"][1]
+                kind, text = child["c"]
+                # Pandoc's Markdown reader emits the definitions it expanded as
+                # "tex"; a {=latex} raw attribute is not expanded, so it still warns.
+                if kind == "tex":
+                    text = without_definitions(text)
                 if PAGE_BREAK_TEX.fullmatch(text.strip()):
                     tag = "div" if child["t"] == "RawBlock" else "span"
                     child["c"] = ["html", f'<{tag} class="quire-page-break"></{tag}>']
                 else:
-                    command = re.search(r"\\[A-Za-z]+|\\.", text)
-                    dropped.append(command.group(0) if command else text.strip())
+                    if kind != "tex" or text:
+                        command = re.search(r"\\[A-Za-z]+|\\.", text)
+                        dropped.append(command.group(0) if command else text.strip())
                     node.remove(child)
             else:
                 convert_raw_tex(child, dropped)

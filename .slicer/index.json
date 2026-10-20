@@ -815,8 +815,8 @@
       "id": "s21",
       "title": "Don't warn on dropped raw TeX that only defines macros Pandoc already expanded",
       "short_title": "Don't warn on dropped raw TeX that only defines macros Pandoc already expanded",
-      "status": "open",
-      "has_slice": false,
+      "status": "done",
+      "has_slice": true,
       "depends_on": [],
       "note_records": [
         {
@@ -850,7 +850,7 @@
         "importance": 2,
         "urgency": 1,
         "effort": 1,
-        "attempts": 0
+        "attempts": 1
       }
     }
   ],

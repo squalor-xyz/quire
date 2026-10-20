@@ -139,6 +139,69 @@ class RenderTests(unittest.TestCase):
         self.assertIn(str(self.source), errors)
         self.assertIn("\\vspace", errors)
 
+    def test_macro_definitions_are_dropped_silently(self):
+        definitions = (
+            "\\newcommand{\\R}{\\mathbb{R}}", "\\newcommand*{\\norm}[1]{\\left\\|#1\\right\\|}",
+            "\\renewcommand\\vec[2][x]{\\mathbf{#2}_{#1}}", "\\providecommand{\\e}{\\mathrm{e}}",
+            "\\def\\a#1#2{#1+#2}", "\\gdef\\b{\\{\\}}", "\\DeclareMathOperator{\\tr}{tr}",
+            "\\DeclareMathOperator*{\\argmax}{arg\\,max}", "\\newcommand{\\R}{\\}}",
+            "\\newcommand{\\R}{\\mathbb{R}} % reals\n\\def\\a{1}\n\n\\DeclareMathOperator{\\tr}{tr}",
+            "% only a comment",
+        )
+        for text in definitions:
+            with self.subTest(text=text):
+                blocks = [{"t": "RawBlock", "c": ["tex", text]},
+                          {"t": "Para", "c": [{"t": "RawInline", "c": ["tex", text]}]},
+                          {"t": "RawBlock", "c": ["html", "<hr>"]}]
+                html, sent, errors, _ = self.build_html(blocks)
+                self.assertEqual(sent, [blocks[2]])
+                self.assertEqual(errors, "")
+
+    def test_latex_raw_attribute_definitions_still_warn(self):
+        # Pandoc does not expand macros in a {=latex} raw attribute, so these are not
+        # definitions it consumed; only the "tex" format is exempt.
+        text = "\\newcommand{\\R}{\\mathbb{R}}"
+        for blocks in ([{"t": "RawBlock", "c": ["latex", text]}],
+                       [{"t": "Para", "c": [{"t": "RawInline", "c": ["latex", text]}]}]):
+            with self.subTest(blocks=blocks):
+                html, sent, errors, _ = self.build_html(blocks)
+                self.assertEqual(errors.count("warning"), 1)
+                self.assertIn("including \\newcommand)", errors)
+
+    def test_page_break_after_definitions_is_kept(self):
+        text = "\\newcommand{\\R}{\\mathbb{R}}\n\\newpage % break"
+        html, sent, errors, _ = self.build_html([{"t": "RawBlock", "c": ["tex", text]}])
+        self.assertEqual(sent, [{"t": "RawBlock", "c": ["html", '<div class="quire-page-break"></div>']}])
+        self.assertEqual(errors, "")
+
+    def test_macro_definitions_in_metadata_are_dropped_silently(self):
+        raw = {"t": "RawInline", "c": ["tex", "\\newcommand{\\R}{\\mathbb{R}}"]}
+        meta = {"title": {"t": "MetaInlines", "c": [{"t": "Str", "c": "T"}, raw]}}
+        html, sent, errors, sent_meta = self.build_html([], meta=meta)
+        self.assertEqual(sent_meta["title"]["c"], [{"t": "Str", "c": "T"}])
+        self.assertEqual(errors, "")
+
+    def test_definitions_mixed_with_other_tex_still_warn(self):
+        for text, command in (
+            ("\\newcommand{\\R}{\\mathbb{R}}\n\\vspace{1cm}", "\\vspace"),
+            ("\\vspace{1cm}\n\\def\\a{1}", "\\vspace"),
+            ("\\def\\a{1}\n\\textbf{x}\n\\def\\b{2}", "\\textbf"),
+            ("\\newcommand{\\R}{\\mathbb{R}} trailing words", "trailing words"),
+            ("\\newcommand{\\R}{x} \\% y", "\\%"),
+        ):
+            with self.subTest(text=text):
+                html, sent, errors, _ = self.build_html([{"t": "RawBlock", "c": ["tex", text]}])
+                self.assertEqual(sent, [])
+                self.assertEqual(errors.count("warning"), 1)
+                self.assertIn(f"including {command})", errors)
+
+    def test_malformed_or_other_definitions_still_warn(self):
+        for text in ("\\newcommand{\\R}{\\mathbb{R}", "\\newcommand{\\R}", "\\newenvironment{x}{a}{b}",
+                     "\\let\\a\\b", "\\newcommandx{\\R}{r}", "\\newcommand{\\R\\S}{x}", "\\def\\a", "\\usepackage{amsmath}"):
+            with self.subTest(text=text):
+                html, sent, errors, _ = self.build_html([{"t": "RawBlock", "c": ["tex", text]}])
+                self.assertEqual(errors.count("warning"), 1)
+
     def test_raw_tex_in_metadata_is_dropped_with_warning(self):
         raw = {"t": "RawInline", "c": ["tex", "\\usepackage{x}"]}
         meta = {"title": {"t": "MetaInlines", "c": [{"t": "Str", "c": "T"}, raw]}}

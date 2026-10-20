@@ -1,0 +1,39 @@
+{
+  "id": "s21",
+  "title": "Don't warn on dropped raw TeX that only defines macros Pandoc already expanded",
+  "lead": [],
+  "depends_note": null,
+  "findings_note": "G5",
+  "size": "S",
+  "flags": [],
+  "trees_note": "core",
+  "trees_plural": false,
+  "boundary": "**Not in this slice:**",
+  "sections": [
+    {
+      "heading": "Why",
+      "body": "Pandoc expands macros defined in Markdown (\\newcommand and similar) into the math that uses them, but still passes the definition itself as raw TeX. Quire drops that raw TeX and warned, so a document that does the right thing got a spurious \"dropped raw TeX\" warning (s12 architect finding G5)."
+    },
+    {
+      "heading": "Files",
+      "body": "quire.py (convert_raw_tex and a small helper), test_render.py, README.md (Page breaks section), CHANGELOG.md"
+    },
+    {
+      "heading": "Failing tests",
+      "body": "test_render.py: a definitions-only raw block (newcommand, renewcommand, providecommand, def, DeclareMathOperator) is dropped silently; a mixed block (definitions plus other TeX) still warns and names the non-definition command; non-definition TeX still warns."
+    },
+    {
+      "heading": "Implement",
+      "body": "When a dropped raw TeX node contains only macro definitions (brace-balanced, recognized forms), drop it without recording a warning. Any other remainder still warns, naming the first command outside the definitions."
+    },
+    {
+      "heading": "Check",
+      "body": "python3 test_quire.py; black --check quire.py test_quire.py; flake8 quire.py test_quire.py"
+    },
+    {
+      "heading": "Git",
+      "body": "Do not commit; orchestrator handles it."
+    }
+  ],
+  "notes": []
+}
