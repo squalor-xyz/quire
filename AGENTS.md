@@ -72,3 +72,12 @@ the only installer path that sets up the Node runtime dependencies.
 - Ask before adding dependencies or accessing paths outside this repository.
 - Do not commit, push, configure remotes, or publish without an explicit request.
 - Keep the README and profile documentation aligned with CLI behavior.
+
+## Worktrees and scratch files
+
+- Create git worktrees under `.worktrees/` at the repository root, one per
+  branch (`.worktrees/<branch>`).
+- Put temporary files, intermediate output, and each agent's temp directory
+  under `.scratch/` (for example `.scratch/<slice>/<role>`), not `/tmp` or a
+  session scratchpad. Both directories are gitignored.
+- Name these locations in every subagent brief.
