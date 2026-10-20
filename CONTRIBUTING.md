@@ -14,7 +14,10 @@ installation is needed to run them.
 | `test_quire.py` | Isolated unit tests with temporary profile assets |
 | `requirements.txt` | WeasyPrint dependency |
 | `quire_html.py`, `quire_mermaid.py`, `quire_pdf.py` | Resource embedding, diagrams, and PDF layout |
+| `quire_math.py` | TeX math rendering to inline SVG, with cache and AST substitution |
 | `mermaid-render.mjs` | Offline browser worker and SVG label normalization |
+| `mathjax-render.mjs` | Offline MathJax worker (Node only, no browser) |
+| `math/` | Locked MathJax runtime manifest (`package.json`, `package-lock.json`) |
 | `test_render.py` | Tool-independent rendering tests, included in the unit suite |
 | `test_render_integration.py` | Explicit real-tool acceptance checks |
 | `AGENTS.md` | Project guidance for coding agents |
@@ -61,10 +64,13 @@ dependencies without writing launchers:
 ```sh
 PUPPETEER_CACHE_DIR="$PWD/.cache/puppeteer" npm ci --cache .cache/npm --no-audit --no-fund
 PUPPETEER_CACHE_DIR="$PWD/.cache/puppeteer" PUPPETEER_SKIP_CHROME_HEADLESS_SHELL_DOWNLOAD=true node node_modules/puppeteer/install.mjs
+npm ci --prefix math --cache .cache/npm --no-audit --no-fund
 python3 test_render_integration.py
 ```
 
-This separate suite renders the eleven-diagram generic fixture, checks PDF text
+This separate suite also builds inline and display math through MathJax (the
+`math/` install is enough for those tests; they need no browser). It renders the
+eleven-diagram generic fixture, checks PDF text
 and page bounds, tests custom paper sizes and variants, exercises cache hits and
 failure behavior, and opens HTML in Chromium while blocking network requests.
 It creates temporary documents and caches inside the checkout. Missing tools

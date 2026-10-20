@@ -17,6 +17,8 @@ do not inspect a parent checkout or depend on its layout.
 - `requirements.txt`: WeasyPrint, the only direct pip dependency.
 - `quire_html.py`, `quire_mermaid.py`, `quire_pdf.py`: offline resource embedding,
   diagram rendering/cache, and PDF page fitting.
+- `quire_math.py`, `mathjax-render.mjs`: TeX math to inline SVG through the
+  locked optional MathJax runtime in `math/` (Node only, no browser).
 - `mermaid-render.mjs`: browser worker using the locked optional Mermaid runtime.
 - `test_render.py`: rendering unit tests included by `test_quire.py`.
 - `test_render_integration.py`: explicit real-tool acceptance tests.
@@ -60,11 +62,13 @@ A real render additionally needs Pandoc, WeasyPrint, and its native libraries.
 Report whether rendering was checked; unit tests alone do not verify PDF output.
 
 Optional real-tool acceptance checks use `python3 test_render_integration.py`.
-They need Node/npm, the locked local Mermaid runtime and Chromium, and Poppler
-in addition to PDF tools. Keep their caches and artifacts inside the checkout.
+They need Node/npm, the locked local Mermaid runtime and Chromium (the math
+tests need only the locked MathJax runtime in `math/`), and Poppler in addition
+to PDF tools. Keep their caches and artifacts inside the checkout.
 Do not add network access during document builds or install dependencies
-automatically at build time. The explicit `--with-mermaid` installer option is
-the only installer path that sets up the Node runtime dependencies.
+automatically at build time. The explicit `--with-mermaid` and `--with-math`
+installer options are the only installer paths that set up Node runtime
+dependencies; they stay separate.
 
 ## Change boundaries
 

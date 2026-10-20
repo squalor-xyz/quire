@@ -156,8 +156,11 @@ def validate_svg(text: str) -> ET.Element:
     return root
 
 
-def prefix_svg(text: str, prefix: str) -> str:
-    """Keep cached diagrams reusable while isolating IDs and CSS selectors."""
+def prefix_svg(text: str, prefix: str, keep_size: bool = False) -> str:
+    """Keep cached diagrams reusable while isolating IDs and CSS selectors.
+
+    keep_size leaves width, height, and style alone, for SVG sized in ex units.
+    """
     root = validate_svg(text)
     ids = {node.get("id") for node in root.iter() if node.get("id")}
     replacements = {value: prefix + value for value in ids}
@@ -185,10 +188,11 @@ def prefix_svg(text: str, prefix: str) -> str:
                 node.set(key, rewrite(value))
         if node.tag.rsplit("}", 1)[-1] == "style" and node.text:
             node.text = rewrite(node.text, selectors=True)
-    box = re.split(r"[\s,]+", root.get("viewBox").strip())
-    root.set("width", box[2])
-    root.set("height", box[3])
-    root.set("style", "max-width:100%;height:auto")
+    if not keep_size:
+        box = re.split(r"[\s,]+", root.get("viewBox").strip())
+        root.set("width", box[2])
+        root.set("height", box[3])
+        root.set("style", "max-width:100%;height:auto")
     ET.register_namespace("", SVG_NS)
     ET.register_namespace("xlink", "http://www.w3.org/1999/xlink")
     return ET.tostring(root, encoding="unicode")

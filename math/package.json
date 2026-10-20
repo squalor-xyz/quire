@@ -1,0 +1,10 @@
+{
+  "name": "quire-math-runtime",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "engines": { "node": ">=22.13.0" },
+  "dependencies": {
+    "mathjax": "4.1.3"
+  }
+}

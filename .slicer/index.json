@@ -368,7 +368,7 @@
       "id": "s12",
       "title": "Render TeX math without a browser or network",
       "short_title": "Render TeX math without a browser or network",
-      "status": "open",
+      "status": "done",
       "has_slice": true,
       "depends_on": [],
       "note_records": [
@@ -378,6 +378,17 @@
           "text": "**2026-10-15** — Owner decisions 2026-10-15: approved mathjax@4.1.3 (Apache-2.0, plain 'mathjax' package; mathjax-full is deprecated) as an optional npm dependency, installed by a separate --with-math installer flag (not folded into --with-mermaid; no browser needed). Scratch evaluation: TeX->SVG in Node works offline, ~40ms. Use svg {fontCache: 'local', linebreaks: {inline: false}} - default inline linebreaking splits into multiple SVGs and WeasyPrint shows only the first. Use tex formatError that throws and remove 'noundefined' so undefined macros error. Output has role=img and data-latex but no aria-label/title; add the TeX source as accessible text. mhchem needs an extra font package (out of scope).",
           "created_at": "2026-10-15T12:21:08Z",
           "attempt": 0,
+          "by": "Jon Robbins",
+          "verified_by": "",
+          "verified_at": "",
+          "stale_after": ""
+        },
+        {
+          "id": "07eb19ab-b0ae-489f-9bff-adec001dabd6",
+          "kind": "",
+          "text": "**2026-10-20** — Verified: TeX math renders as MathJax 4.1.3 inline SVG (math/ runtime via install.py --with-math, no browser); cached by TeX, display, MathJax+font version and worker hash; fresh TeX components per expression and in-math definers rejected so cached results cannot depend on batch order; --no-math byte-identical to prior output; HTML without runtime keeps MathML with a warning, PDF errors with install hint; TeX errors name file and expression. 157 unit and 23 integration tests OK on s12 merged with main; real PDF builds inspected. Gate VERDICT: PASS.",
+          "created_at": "2026-10-20T17:00:45Z",
+          "attempt": 1,
           "by": "Jon Robbins",
           "verified_by": "",
           "verified_at": "",
@@ -404,7 +415,7 @@
         "importance": 2,
         "urgency": 1,
         "effort": 3,
-        "attempts": 0
+        "attempts": 1
       }
     },
     {

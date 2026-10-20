@@ -17,7 +17,12 @@ from unittest.mock import patch
 
 import install
 import quire
-from test_render import RenderTests, HTMLResourceTests, MermaidTests  # noqa: F401
+from test_render import (  # noqa: F401
+    RenderTests,
+    HTMLResourceTests,
+    MermaidTests,
+    MathTests,
+)
 
 APP_DIR = Path(__file__).resolve().parent
 
