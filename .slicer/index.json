@@ -368,7 +368,7 @@
       "id": "s12",
       "title": "Render TeX math without a browser or network",
       "short_title": "Render TeX math without a browser or network",
-      "status": "started",
+      "status": "done",
       "has_slice": true,
       "depends_on": [],
       "note_records": [
@@ -382,12 +382,20 @@
           "verified_by": "",
           "verified_at": "",
           "stale_after": ""
+        },
+        {
+          "id": "07eb19ab-b0ae-489f-9bff-adec001dabd6",
+          "kind": "",
+          "text": "**2026-10-20** — Verified: TeX math renders as MathJax 4.1.3 inline SVG (math/ runtime via install.py --with-math, no browser); cached by TeX, display, MathJax+font version and worker hash; fresh TeX components per expression and in-math definers rejected so cached results cannot depend on batch order; --no-math byte-identical to prior output; HTML without runtime keeps MathML with a warning, PDF errors with install hint; TeX errors name file and expression. 157 unit and 23 integration tests OK on s12 merged with main; real PDF builds inspected. Gate VERDICT: PASS.",
+          "created_at": "2026-10-20T17:00:45Z",
+          "attempt": 1,
+          "by": "Jon Robbins",
+          "verified_by": "",
+          "verified_at": "",
+          "stale_after": ""
         }
       ],
-      "claim": {
-        "owner": "Jon Robbins",
-        "at": "2026-10-19T15:14:01Z"
-      },
+      "claim": null,
       "fields": {
         "size": "L",
         "flags": [],
