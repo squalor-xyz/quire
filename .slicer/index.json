@@ -368,7 +368,7 @@
       "id": "s12",
       "title": "Render TeX math without a browser or network",
       "short_title": "Render TeX math without a browser or network",
-      "status": "open",
+      "status": "started",
       "has_slice": true,
       "depends_on": [],
       "note_records": [
@@ -384,7 +384,10 @@
           "stale_after": ""
         }
       ],
-      "claim": null,
+      "claim": {
+        "owner": "Jon Robbins",
+        "at": "2026-10-19T15:14:01Z"
+      },
       "fields": {
         "size": "L",
         "flags": [],
@@ -404,7 +407,7 @@
         "importance": 2,
         "urgency": 1,
         "effort": 3,
-        "attempts": 0
+        "attempts": 1
       }
     },
     {

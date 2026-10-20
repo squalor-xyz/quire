@@ -4,8 +4,8 @@
 
 Turn Markdown into PDF or standalone HTML with Pandoc and WeasyPrint. Quire provides a plain
 stylesheet and supports separate profiles for custom styling and reusable content.
-Mermaid diagrams render to inline SVG at build time when the optional renderer
-is installed. Builds and viewing use local resources and make no network requests.
+Mermaid diagrams and TeX math render to inline SVG at build time when the optional
+renderers are installed. Builds and viewing use local resources and make no network requests.
 
 ## Install
 
@@ -46,7 +46,26 @@ source text, so a Mermaid-looking fence that Pandoc does not treat as code (for
 example inside an HTML comment) can still trigger the hint. `--no-mermaid`
 keeps diagrams as code instead and gets past it.
 
-HTML-only use requires Python and Pandoc, without WeasyPrint or its native libraries:
+For TeX math (`$...$` and `$$...$$`), also provide Node 22.13 or newer and npm,
+then run:
+
+```sh
+python3 install.py --with-math
+```
+
+This installs the pinned MathJax package (Apache-2.0) from `math/package-lock.json`
+into `math/node_modules/`. It needs no browser, and it is separate from
+`--with-mermaid`; install either or both. Without it, Pandoc writes math as MathML,
+which WeasyPrint cannot draw: the PDF shows the flattened symbols followed by the
+TeX source. A PDF of a document containing math therefore fails with an
+installation hint naming the source file if the renderer is missing, and `--no-math`
+keeps Pandoc's output instead. HTML output does not fail: browsers draw MathML
+themselves, so Quire keeps Pandoc's MathML and prints one warning naming the file
+and the `--with-math` and `--no-math` options. The PDF error appears when that
+document builds, so in a batch earlier targets may already be written.
+
+HTML-only use requires Python and Pandoc, without WeasyPrint or its native
+libraries. Math stays MathML in that case unless MathJax is installed (see above):
 
 ```sh
 python3 quire.py --no-config notes.md -o notes.html
@@ -77,6 +96,7 @@ quire notes.md --resource-path assets   # Set the resource root
 quire notes.md -o notes.html            # Standalone HTML
 quire notes.md --format html            # Writes notes.html
 quire notes.md --no-mermaid              # Leave diagrams as code
+quire notes.md --no-math                 # Keep Pandoc's math output
 quire notes.md -v                        # Commands, renders, and cache hits
 quire *.md                               # Build several documents
 ```
@@ -114,17 +134,39 @@ select their respective formats, and the default is PDF. Built-in output paths
 use the chosen extension when no explicit output path is supplied. Profile
 variants, CSS, includes, and suffixes apply to both formats.
 
-HTML embeds CSS, images, local fonts, and diagram SVGs in one file. Local CSS
+HTML embeds CSS, images, local fonts, diagram SVGs, and math SVGs in one file. Local CSS
 imports and resource URLs resolve relative to their stylesheet. Missing assets,
 remote assets, scripts, and frames produce errors; ordinary hyperlinks are kept.
 PDF uses the same embedded document. Successful builds print only `wrote <path>`;
-`-v` prints commands, diagram rendering, and cache hits to stderr. A failed build
+`-v` prints commands, diagram and math rendering, and cache hits to stderr. A failed build
 leaves an existing output file intact.
 
 Diagrams scale to the PDF's actual page area without splitting across pages.
 Oversized diagrams are reduced proportionally, so very large diagrams may have
 small labels. `<br/>` and `<small>` labels are preserved as SVG text. Diagram
 failures identify the source file, diagram number, and opening-fence line.
+
+Math is typeset by MathJax in one Node process per document (about 40 ms for a
+few equations), with no browser. Inline math sits on the text baseline and is sized
+in `ex` units, so it follows the surrounding font size. Display math (`$$...$$`) is
+centered on its own line, kept on one page, and scaled down if wider than the text.
+Inline math is never broken across lines, so an expression wider than a line
+overflows it. Each equation is SVG drawing, so it is not selectable or searchable
+in the PDF; its TeX source is kept as the SVG's `aria-label` and `<title>`. A TeX
+error (including an undefined macro, or markup MathJax cannot read) fails the build,
+naming the source file and the expression. Macros defined inside math (`\def`,
+`\newcommand`, `\renewcommand`, `\newenvironment`, `\let`, `\DeclareMathOperator`)
+are rejected as undefined, with a clear error. Independently of that, every
+expression is typeset with a fresh MathJax input, so a definition made by any
+other command (`\definecolor`, `\newcolumntype`, `\Newextarrow`) cannot reach
+another equation and results depend only on the cached expression. Define macros in the Markdown instead, as
+`\newcommand{\R}{\mathbb{R}}` on its own line outside math: Pandoc expands them
+before Quire sees the math. `\require` is not available. Math in the metadata
+`title` is kept as plain TeX text in the page `<title>` and PDF title. Not
+supported: numbered equations and cross-references, and `mhchem` (`\ce`), which
+needs an extra font package. Results are cached in
+`$XDG_CACHE_HOME/quire/math`, or `~/.cache/quire/math`, keyed by TeX source, inline
+or display, and the MathJax and font versions.
 
 Rendered SVGs are cached in `$XDG_CACHE_HOME/quire/mermaid`, or
 `~/.cache/quire/mermaid` by default. Source, profile theme/font settings, stylesheet

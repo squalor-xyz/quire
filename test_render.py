@@ -15,6 +15,7 @@ from unittest.mock import Mock, patch
 
 import install
 import quire
+import quire_math
 from quire_html import Resources
 from quire_mermaid import MermaidRenderer, annotated_fences, fence_locations, prefix_svg, render_blocks, validate_svg
 from quire_pdf import diagram_height_ratio
@@ -398,6 +399,350 @@ class MermaidTests(unittest.TestCase):
         with patch.object(renderer, '_call', return_value='<svg/>'), self.assertRaises(ValueError):
             renderer.render('broken diagram', 1)
         self.assertFalse((self.root / 'cache').exists())
+
+
+MATH_SVG = (
+    '<svg xmlns="http://www.w3.org/2000/svg" width="2.5ex" height="1.9ex" '
+    'role="img" focusable="false" viewBox="0 -700 1100 800" '
+    'style="vertical-align: -0.2ex;"><defs><path id="MJX-1-X" d="M0 0L9 9"/>'
+    '</defs><g><use data-c="X" xlink:href="#MJX-1-X" '
+    'xmlns:xlink="http://www.w3.org/1999/xlink"/></g></svg>'
+)
+
+
+def math_node(tex, display=False):
+    kind = "DisplayMath" if display else "InlineMath"
+    return {"t": "Math", "c": [{"t": kind}, tex]}
+
+
+class StubMath:
+    """Stands in for MathRenderer: records batches, fails on chosen sources."""
+
+    def __init__(self, failing=()):
+        self.failing = set(failing)
+        self.batches = []
+
+    def render_many(self, items):
+        self.batches.append(list(items))
+        return [
+            (None, "Undefined control sequence") if tex in self.failing
+            else (MATH_SVG, None)
+            for tex, _display in items
+        ]
+
+
+class MathTests(unittest.TestCase):
+    def setUp(self):
+        temporary = tempfile.TemporaryDirectory(dir=ROOT)
+        self.addCleanup(temporary.cleanup)
+        self.root = Path(temporary.name)
+        self.job = quire.Job(
+            self.root / "notes.md", self.root / "out.html", "", [], {},
+            str(self.root), self.root,
+        )
+
+    def engine(self):
+        manifest = self.root / "engine/math/node_modules/mathjax/package.json"
+        manifest.parent.mkdir(parents=True)
+        manifest.write_text("{}")
+        (self.root / "engine/mathjax-render.mjs").write_text("// test worker")
+        return self.root / "engine"
+
+    def renderer(self, fingerprint="mathjax-4.1.3"):
+        calls = []
+
+        def worker(renderer, args, payload):
+            if payload is None:
+                return fingerprint
+            calls.append(payload)
+            return json.dumps(
+                {"results": [{"svg": MATH_SVG} for _ in payload["items"]]}
+            )
+
+        patcher = patch.object(quire_math.MathRenderer, "_call", worker)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        with patch("quire_math.shutil.which", return_value="node"):
+            renderer = quire_math.MathRenderer(
+                self.engine(), False, self.root / "cache"
+            )
+        return renderer, calls
+
+    def test_math_nodes_become_inline_svg_with_source_as_text(self):
+        ast = {
+            "meta": {"title": {"t": "MetaInlines", "c": [math_node("m")]}},
+            "blocks": [{"t": "Para", "c": [
+                {"t": "Str", "c": "a"}, math_node("a<b & c"),
+                math_node("\\frac{a}{b}", True),
+            ]}],
+        }
+        stub = StubMath()
+        self.assertTrue(quire_math.render_math(ast, self.job, lambda *a: stub))
+        inline, display = ast["blocks"][0]["c"][1:]
+        for node in (inline, display, ast["meta"]["title"]["c"][0]):
+            self.assertEqual(node["t"], "RawInline")
+            self.assertEqual(node["c"][0], "html")
+            self.assertIn("<svg", node["c"][1])
+        self.assertIn('class="quire-math"', inline["c"][1])
+        self.assertIn('class="quire-math quire-math-display"', display["c"][1])
+        self.assertIn('aria-label="a&lt;b &amp; c"', inline["c"][1])
+        self.assertIn("<title>a&lt;b &amp; c</title>", inline["c"][1])
+        self.assertIn('width="2.5ex"', inline["c"][1])
+        self.assertIn("vertical-align", inline["c"][1])
+        self.assertIn("quire-x2-", inline["c"][1])
+        self.assertIn('id="quire-x3-MJX-1-X"', display["c"][1])
+        self.assertNotIn('id="MJX-1-X"', inline["c"][1])
+
+    def test_one_batch_per_document_deduplicates_sources(self):
+        ast = {"meta": {}, "blocks": [{"t": "Para", "c": [
+            math_node("x"), math_node("y"), math_node("x"), math_node("x", True),
+        ]}]}
+        stub = StubMath()
+        quire_math.render_math(ast, self.job, lambda *a: stub)
+        self.assertEqual(len(stub.batches), 1)
+        self.assertEqual(
+            sorted(stub.batches[0]), [("x", False), ("x", True), ("y", False)]
+        )
+
+    def test_cache_is_keyed_by_source_display_and_renderer_version(self):
+        renderer, calls = self.renderer()
+        first = renderer.render_many([("x^2", False), ("x^2", True)])
+        self.assertEqual(len(calls), 1)
+        self.assertEqual(len(calls[0]["items"]), 2)
+        self.assertEqual([item[1] for item in first], [None, None])
+        renderer.render_many([("x^2", False), ("x^2", True)])
+        self.assertEqual(len(calls), 1)
+        renderer.render_many([("x^3", False), ("x^2", False)])
+        self.assertEqual([c["tex"] for c in calls[1]["items"]], ["x^3"])
+        # A different MathJax version must not reuse the entries.
+        renderer.fingerprint = "mathjax-9.9.9"
+        renderer.render_many([("x^2", False)])
+        self.assertEqual(len(calls), 3)
+        # A corrupt entry is rendered again.
+        for path in (self.root / "cache").glob("*.svg"):
+            path.write_text("broken")
+        renderer.render_many([("x^2", False)])
+        self.assertEqual(len(calls), 4)
+        names = [path.name for path in (self.root / "cache").iterdir()]
+        self.assertFalse(any(name.startswith("tmp") for name in names))
+
+    def test_tex_errors_are_not_cached_and_nothing_is_written(self):
+        renderer, calls = self.renderer()
+
+        def failing(self_, args, payload):
+            return json.dumps({"results": [{"error": "Undefined control sequence"}]})
+
+        with patch.object(quire_math.MathRenderer, "_call", failing):
+            result = renderer.render_many([("\\foo", False)])
+        self.assertEqual(result, [(None, "Undefined control sequence")])
+        self.assertFalse((self.root / "cache").exists())
+
+    def test_malformed_worker_replies_raise_value_error(self):
+        renderer, _ = self.renderer()
+        ok = {"svg": MATH_SVG}
+        for reply in (
+            json.dumps({"results": []}), "not json", "[]", '"x"', "null",
+            json.dumps({"results": [1]}), json.dumps({"results": [{}]}),
+            json.dumps({"results": [{"svg": 3}]}),
+            json.dumps({"results": [{**ok, "error": "both"}]}),
+            json.dumps({"results": "x"}),
+        ):
+            with self.subTest(reply=reply), patch.object(
+                quire_math.MathRenderer, "_call", lambda *a: reply
+            ), self.assertRaises(ValueError):
+                renderer.render_many([("z", False)])
+        self.assertFalse((self.root / "cache").exists())
+        ast = {"meta": {}, "blocks": [{"t": "Para", "c": [math_node("z")]}]}
+        with patch.object(
+            quire_math.MathRenderer, "_call", lambda *a: "[]"
+        ), self.assertRaisesRegex(SystemExit, r"notes\.md: document contains math"):
+            quire_math.render_math(ast, self.job, lambda *a: renderer)
+
+    def test_invalid_svg_is_an_error_for_that_expression_only(self):
+        renderer, _ = self.renderer()
+        reply = json.dumps({"results": [{"svg": "<pre>x</pre>"}, {"svg": MATH_SVG}]})
+        with patch.object(quire_math.MathRenderer, "_call", lambda *a: reply):
+            first, second = renderer.render_many([("a<b", False), ("ok", False)])
+        self.assertIsNone(first[0])
+        self.assertIn("rejected", first[1])
+        self.assertEqual(second, (MATH_SVG, None))
+        self.assertEqual(len(list((self.root / "cache").glob("*.svg"))), 1)
+        ast = {"meta": {}, "blocks": [{"t": "Para", "c": [math_node("a<b")]}]}
+        single = json.dumps({"results": [{"svg": "<pre>x</pre>"}]})
+        with patch.object(
+            quire_math.MathRenderer, "_call", lambda *a: single
+        ), self.assertRaises(SystemExit) as caught:
+            quire_math.render_math(ast, self.job, lambda *a: renderer)
+        self.assertIn(f"error: {self.root / 'notes.md'}: TeX error in `a<b`",
+                      str(caught.exception))
+
+    def test_html_without_runtime_warns_and_keeps_mathml(self):
+        ast = {"meta": {}, "blocks": [{"t": "Para", "c": [math_node("x")]}]}
+        self.job.format = "html"
+        errors = io.StringIO()
+        probed = []
+
+        def missing(engine):
+            probed.append(engine)
+            return False
+
+        factory = Mock()
+        with redirect_stderr(errors):
+            self.assertFalse(
+                quire_math.render_math(ast, self.job, factory, available=missing)
+            )
+        self.assertEqual(probed, [quire_math.ENGINE_DIR])
+        factory.assert_not_called()
+        self.assertEqual(ast["blocks"][0]["c"][0]["t"], "Math")
+        warning = errors.getvalue()
+        self.assertEqual(warning.count("warning"), 1)
+        for text in (str(self.root / "notes.md"), "--with-math", "--no-math"):
+            self.assertIn(text, warning)
+        self.job.format = "pdf"
+        with patch("quire_math.ENGINE_DIR", self.root), \
+                patch("quire_math.shutil.which", return_value="node"), \
+                self.assertRaisesRegex(SystemExit, "with-math"):
+            quire_math.render_math(ast, self.job)
+
+    def test_title_math_becomes_plain_text_pagetitle(self):
+        title = {"t": "MetaInlines", "c": [
+            {"t": "Str", "c": "Energy"}, {"t": "Space"}, math_node("E=mc^2"),
+            {"t": "Space"}, {"t": "Emph", "c": [{"t": "Str", "c": "now"}]},
+        ]}
+        tests = RenderTests()
+        tests.root = self.root
+        tests.source = self.root / "notes.md"
+        tests.source.write_text("x\n", encoding="utf-8")
+        for meta, expected in (
+            ({"title": title}, "pagetitle=Energy E=mc^2 now"),
+            ({"title": title, "pagetitle": {"t": "MetaString", "c": "T"}}, None),
+            ({"title": {"t": "MetaInlines", "c": [{"t": "Str", "c": "Plain"}]}}, None),
+        ):
+            job = tests.job(format="html")
+            ast = {"meta": meta, "blocks": [], "pandoc-api-version": [1, 23]}
+            results = [
+                subprocess.CompletedProcess([], 0, json.dumps(ast), ""),
+                subprocess.CompletedProcess([], 0, "<html><head></head></html>", ""),
+            ]
+            with self.subTest(expected=expected), \
+                    patch("quire.which_pandoc", return_value="pandoc"), \
+                    patch("quire_math.MathRenderer", lambda *a: StubMath()), \
+                    patch("quire_math.renderer_available", return_value=True), \
+                    patch("quire.subprocess.run", side_effect=results) as run, \
+                    redirect_stdout(io.StringIO()):
+                quire.render(job)
+            command = run.call_args_list[1].args[0]
+            pagetitles = [word for word in command if word.startswith("pagetitle=")]
+            self.assertEqual(pagetitles, [expected] if expected else [])
+
+    def test_locate_prefers_the_delimited_expression(self):
+        part = self.root / "part.md"
+        self.job.original_markdown = "A word with the letter a in it\n"
+        self.job.include_sources = [(part, "Use $a$ here\n")]
+        self.assertEqual(quire_math.locate(self.job, "a"), part)
+        self.job.include_sources = []
+        self.assertEqual(quire_math.locate(self.job, "a"), self.job.source)
+
+    def test_tex_error_names_source_file_and_expression(self):
+        ast = {"meta": {}, "blocks": [{"t": "Para", "c": [
+            math_node("a+b"), math_node("\\foo{x}"),
+        ]}]}
+        stub = StubMath(failing={"\\foo{x}"})
+        with self.assertRaises(SystemExit) as caught:
+            quire_math.render_math(ast, self.job, lambda *a: stub)
+        message = str(caught.exception)
+        self.assertIn(str(self.root / "notes.md"), message)
+        self.assertIn("\\foo{x}", message)
+        self.assertIn("Undefined control sequence", message)
+        self.assertNotIn("a+b", message)
+
+    def test_tex_error_names_the_include_that_holds_the_expression(self):
+        part = self.root / "part.md"
+        self.job.original_markdown = "Body $a$\n"
+        self.job.include_sources = [(part, "Cover $\\bad$\n")]
+        ast = {"meta": {}, "blocks": [{"t": "Para", "c": [math_node("\\bad")]}]}
+        stub = StubMath(failing={"\\bad"})
+        with self.assertRaisesRegex(SystemExit, "part.md"):
+            quire_math.render_math(ast, self.job, lambda *a: stub)
+
+    def test_no_math_and_no_math_nodes_do_not_construct_renderer(self):
+        factory = Mock()
+        self.assertFalse(quire_math.render_math({"meta": {}, "blocks": []},
+                                                self.job, factory))
+        ast = {"meta": {}, "blocks": [{"t": "Para", "c": [math_node("x")]}]}
+        self.job.no_math = True
+        self.assertFalse(quire_math.render_math(ast, self.job, factory))
+        self.assertEqual(ast["blocks"][0]["c"][0]["t"], "Math")
+        factory.assert_not_called()
+
+    def test_missing_runtime_gives_installation_hint_with_file(self):
+        with patch("quire_math.shutil.which", return_value="node"), \
+                self.assertRaisesRegex(SystemExit, "with-math") as caught:
+            quire_math.MathRenderer(self.root, False, self.root / "cache")
+        self.assertIn("--no-math", str(caught.exception))
+        with patch("quire_math.shutil.which", return_value=None), \
+                self.assertRaisesRegex(SystemExit, "with-math"):
+            quire_math.require_renderer(self.engine())
+        ast = {"meta": {}, "blocks": [{"t": "Para", "c": [math_node("x")]}]}
+        with patch("quire_math.ENGINE_DIR", self.root), \
+                patch("quire_math.shutil.which", return_value="node"), \
+                self.assertRaisesRegex(SystemExit, r"(?s)notes\.md.*with-math"):
+            quire_math.render_math(ast, self.job)
+
+    def test_render_inlines_math_and_sizes_it_with_the_text(self):
+        render_tests = RenderTests()
+        render_tests.root = self.root
+        render_tests.source = self.root / "notes.md"
+        render_tests.source.write_text("Hi $x$\n", encoding="utf-8")
+        blocks = [{"t": "Para", "c": [math_node("x")]}]
+        stub = StubMath()
+        with patch("quire_math.MathRenderer", lambda *a: stub), \
+                patch("quire_math.renderer_available", return_value=True):
+            html, sent, errors, _ = render_tests.build_html(blocks)
+        self.assertEqual(sent[0]["c"][0]["t"], "RawInline")
+        self.assertRegex(html, r"\.quire-math-display\s*\{[^}]*display:\s*block")
+        self.assertRegex(
+            html, r"\.quire-math-display\s*\{[^}]*text-align:\s*center"
+        )
+        self.assertEqual(errors, "")
+        with patch("quire_math.MathRenderer", side_effect=AssertionError):
+            html, sent, errors, _ = render_tests.build_html(blocks, no_math=True)
+        self.assertEqual(sent[0]["c"][0]["t"], "Math")
+        self.assertNotIn("quire-math", html)
+
+    def test_cli_flag_and_job_field(self):
+        parser = quire._parser(None, "test", "quire")
+        source = self.root / "notes.md"
+        source.write_text("x\n", encoding="utf-8")
+        self.assertFalse(parser.parse_args([str(source)]).no_math)
+        self.assertTrue(parser.parse_args([str(source), "--no-math"]).no_math)
+        job = quire.plan_job(str(source), profile=None, cwd=self.root, no_math=True)
+        self.assertTrue(job.no_math)
+        cfg = quire.UserConfig(default="", profiles={})
+        for flags, expected in (([], False), (["--no-math"], True)):
+            with self.subTest(flags=flags), patch("quire.render") as render:
+                quire.main(["--no-config", str(source), *flags], user_config=cfg)
+            self.assertEqual(render.call_args.args[0].no_math, expected)
+
+    def test_math_installer_is_separate_and_installs_no_browser(self):
+        node = subprocess.CompletedProcess([], 0, "v22.13.0\n")
+        with patch("install.shutil.which", side_effect=lambda n: f"/tools/{n}"), \
+                patch("install.subprocess.run", return_value=node) as run:
+            install.ensure_math()
+        commands = [call.args[0] for call in run.call_args_list]
+        self.assertEqual(len(commands), 2)
+        self.assertEqual(commands[1][1:4], ["ci", "--prefix", str(ROOT / "math")])
+        self.assertFalse(any("puppeteer" in " ".join(c) for c in commands))
+        with patch("install.install") as mocked:
+            install.main(["--with-math", "--skip-venv", "--python",
+                          str(self.root / "python"), "--bin-dir",
+                          str(self.root / "bin"), "--config-dir",
+                          str(self.root / "config")])
+        self.assertTrue(mocked.call_args.kwargs["with_math"])
+        self.assertFalse(mocked.call_args.kwargs["with_mermaid"])
+        with patch("install.shutil.which", return_value=None), \
+                self.assertRaisesRegex(SystemExit, "with-math requires Node"):
+            install.ensure_math()
 
 
 if __name__ == "__main__":

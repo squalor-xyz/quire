@@ -247,16 +247,31 @@ def ensure_venv(python: Path | None) -> Path:
     return venv_python
 
 
-def ensure_mermaid() -> None:
-    """Install the optional locked Node runtime dependencies inside the checkout."""
+def require_node(option: str) -> tuple[str, str]:
+    """Return node and npm paths for an optional runtime, or exit naming option."""
     node = shutil.which("node")
     npm = shutil.which("npm")
     if not node or not npm:
-        raise SystemExit("error: --with-mermaid requires Node >=22.13 and npm on PATH")
+        raise SystemExit(f"error: {option} requires Node >=22.13 and npm on PATH")
     version = subprocess.run([node, "--version"], capture_output=True, text=True, check=True)
     match = re.fullmatch(r"v(\d+)\.(\d+)\.(\d+)\s*", version.stdout)
     if not match or tuple(map(int, match.groups())) < (22, 13, 0):
-        raise SystemExit("error: --with-mermaid requires Node >=22.13")
+        raise SystemExit(f"error: {option} requires Node >=22.13")
+    return node, npm
+
+
+def ensure_math() -> None:
+    """Install the optional locked MathJax runtime (math/), without a browser."""
+    _, npm = require_node("--with-math")
+    env = os.environ.copy()
+    env["npm_config_cache"] = str(APP_DIR / ".cache" / "npm")
+    subprocess.run([npm, "ci", "--prefix", str(APP_DIR / "math"),
+                    "--no-audit", "--no-fund"], check=True, cwd=APP_DIR, env=env)
+
+
+def ensure_mermaid() -> None:
+    """Install the optional locked Node runtime dependencies inside the checkout."""
+    node, npm = require_node("--with-mermaid")
     env = os.environ.copy()
     env["PUPPETEER_CACHE_DIR"] = str(APP_DIR / ".cache" / "puppeteer")
     env["PUPPETEER_SKIP_CHROME_HEADLESS_SHELL_DOWNLOAD"] = "true"
@@ -323,9 +338,12 @@ def install(
     script: Path | None = None,
     ensure_runtime: bool = True,
     with_mermaid: bool = False,
+    with_math: bool = False,
 ) -> None:
     if with_mermaid:
         ensure_mermaid()
+    if with_math:
+        ensure_math()
     if ensure_runtime:
         interpreter = ensure_venv(None)
     else:
@@ -465,6 +483,9 @@ def main(argv: list[str] | None = None) -> None:
                         help="Interpreter for the launchers. Requires --skip-venv.")
     parser.add_argument("--with-mermaid", action="store_true",
                         help="Install local Mermaid tooling and Chromium; requires Node >=22.13 and npm")
+    parser.add_argument("--with-math", action="store_true",
+                        help="Install local MathJax for TeX math; "
+                             "requires Node >=22.13 and npm, no browser")
     args = parser.parse_args(argv)
     if args.name and args.profile is None:
         raise SystemExit("error: --name requires --profile")
@@ -478,6 +499,7 @@ def main(argv: list[str] | None = None) -> None:
         python=args.python,
         ensure_runtime=not args.skip_venv,
         with_mermaid=args.with_mermaid,
+        with_math=args.with_math,
     )
 
 

@@ -16,6 +16,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 import quire
+import quire_math
 from quire_mermaid import MermaidRenderer, validate_svg
 
 ROOT = Path(__file__).parent.resolve()
@@ -307,6 +308,220 @@ class IntegrationTests(unittest.TestCase):
         with patch('quire_mermaid.shutil.which', side_effect=lambda name: None if name == 'node' else lookup(name)), \
                 self.assertRaisesRegex(SystemExit, 'with-mermaid'):
             self.build(format='html')
+
+
+class MathIntegrationTests(unittest.TestCase):
+    """TeX math through the real MathJax runtime; no browser is involved."""
+
+    @classmethod
+    def setUpClass(cls):
+        needed = ("pandoc", "node", "pdftotext", "pdftoppm")
+        missing = [tool for tool in needed if not shutil.which(tool)]
+        if not quire_math.renderer_available(ROOT):
+            missing.append("local MathJax runtime")
+        if not (ROOT / ".venv/bin/weasyprint").is_file():
+            missing.append("local WeasyPrint")
+        if missing:
+            raise unittest.SkipTest("missing acceptance tools: " + ", ".join(missing))
+
+    def setUp(self):
+        temporary = tempfile.TemporaryDirectory(dir=ROOT)
+        self.addCleanup(temporary.cleanup)
+        self.root = Path(temporary.name)
+        cache = patch.dict(os.environ, {"XDG_CACHE_HOME": str(self.root / "cache")})
+        cache.start()
+        self.addCleanup(cache.stop)
+        self.source = self.root / "equations.md"
+        self.source.write_text(
+            "# Equations\n\n"
+            "The ratio $\\Gamma = \\frac{a_1^2}{b}$ and $x_i$ sit in a line.\n\n"
+            "$$EVM = \\sqrt{\\frac{\\sum_k |e_k|^2}{\\sum_k |s_k|^2}}$$\n\n"
+            "Same again: $x_i$. Price is $5 and $6.\n\n"
+            "Markup characters: $a < b$, $\\text{<}$ and $a<b>c$.\n",
+            encoding="utf-8",
+        )
+
+    def build(self, **kwargs):
+        job = quire.plan_job(str(self.source), profile=None, cwd=self.root, **kwargs)
+        output = io.StringIO()
+        with redirect_stdout(output), redirect_stderr(io.StringIO()):
+            quire.render(job)
+        return job
+
+    def ink_rows(self, pdf):
+        """Page 1 as PGM: ink bounding boxes of the text and equation bands."""
+        base = self.root / "page"
+        subprocess.run(
+            ["pdftoppm", "-r", "72", "-gray", "-f", "1", "-l", "1",
+             str(pdf), str(base)],
+            check=True, capture_output=True,
+        )
+        data = next(self.root.glob("page-*.pgm")).read_bytes()
+        header = re.match(rb"P5\s+(\d+)\s+(\d+)\s+255\s", data)
+        width, height = int(header[1]), int(header[2])
+        pixels = data[header.end():]
+        bands, current = [], None
+        for row in range(height):
+            line = pixels[row * width:(row + 1) * width]
+            dark = [x for x, value in enumerate(line) if value < 128]
+            if dark and current is None:
+                current = [row, min(dark), max(dark)]
+            elif dark:
+                current[1] = min(current[1], dark[0])
+                current[2] = max(current[2], dark[-1])
+            elif current is not None:
+                bands.append((current[0], row, current[1], current[2]))
+                current = None
+        return width, bands
+
+    def test_inline_and_display_math_render_in_pdf_and_html(self):
+        html = self.build(format="html")
+        content = html.output.read_text()
+        self.assertEqual(content.count('class="quire-math"'), 6)
+        self.assertEqual(content.count('class="quire-math quire-math-display"'), 1)
+        self.assertNotIn("<math", content)
+        self.assertNotIn("data-latex", content)
+        for source in ("a &lt; b", "\\text{&lt;}", "a&lt;b&gt;c"):
+            self.assertIn(f'aria-label="{source}"', content)
+        ET.fromstring(  # every SVG is well-formed XML
+            "<root>" + "".join(re.findall(r"<svg.*?</svg>", content, re.S)) + "</root>"
+        )
+        self.assertIn('aria-label="x_i"', content)
+        self.assertIn("<title>\\Gamma = \\frac{a_1^2}{b}</title>", content)
+        self.assertNotIn("foreignObject", content)
+        pdf = self.build(format="pdf")
+        text = self.pdf_text(pdf.output)
+        self.assertNotIn("\\frac", text)
+        self.assertIn("Price is $5 and $6.", text)
+        width, bands = self.ink_rows(pdf.output)
+        equation = max(bands, key=lambda band: band[1] - band[0])
+        centre = (equation[2] + equation[3]) / 2
+        self.assertLess(abs(centre - width / 2), 8)
+
+    def pdf_text(self, path):
+        return subprocess.check_output(
+            ["pdftotext", "-layout", str(path), "-"], text=True
+        )
+
+    def test_second_build_uses_the_cache_and_one_worker_run(self):
+        calls = []
+        original = quire_math.MathRenderer._call
+
+        def recorded(renderer, args, payload):
+            if payload is not None:
+                calls.append(payload)
+            return original(renderer, args, payload)
+
+        with patch.object(quire_math.MathRenderer, "_call", recorded):
+            self.build(format="html")
+            self.assertEqual(len(calls), 1)
+            self.assertEqual(len(calls[0]["items"]), 6)
+            self.build(format="html")
+            self.assertEqual(len(calls), 1)
+
+    def test_tex_error_names_file_and_expression_and_keeps_output(self):
+        self.source.write_text("# Bad\n\nHello $\\foo{x}$ there.\n", encoding="utf-8")
+        output = self.root / "equations.html"
+        output.write_text("previous", encoding="utf-8")
+        with self.assertRaises(SystemExit) as caught:
+            self.build(format="html")
+        self.assertIn(str(self.source), str(caught.exception))
+        self.assertIn("\\foo{x}", str(caught.exception))
+        self.assertEqual(output.read_text(), "previous")
+
+    def write(self, text):
+        self.source.write_text(text, encoding="utf-8")
+
+    def test_pandoc_macros_work_but_math_internal_definitions_fail(self):
+        self.write("\\newcommand{\\R}{\\mathbb{R}}\n\nIn $\\R^n$.\n")
+        content = self.build(format="html").output.read_text()
+        self.assertIn('aria-label="\\mathbb{R}^n"', content)
+        for tex in ("\\def\\q{1}\\q", "\\newcommand{\\q}{1}\\q"):
+            with self.subTest(tex=tex):
+                self.write(f"Bad ${tex}$\n")
+                with self.assertRaises(SystemExit) as caught:
+                    self.build(format="html")
+                message = str(caught.exception)
+                self.assertIn(f"TeX error in `{tex}`", message)
+                self.assertIn("Undefined control sequence", message)
+        # A definition can no longer leak into a later expression.
+        self.write("A $\\def\\q{1}$ and $\\q$.\n")
+        with self.assertRaises(SystemExit) as caught:
+            self.build(format="html")
+        self.assertEqual(str(caught.exception).count("TeX error"), 2)
+
+    def test_autoloaded_definitions_do_not_leak_between_expressions(self):
+        pairs = (
+            ("\\Newextarrow{\\xx}{5,5}{0x2192}\\xx{a}", "\\xx{a}"),
+            ("\\definecolor{mine}{rgb}{1,0,0}\\color{mine}x", "\\color{mine}x"),
+            ("\\newcolumntype{Q}{c}\\begin{array}{Q}1\\end{array}",
+             "\\begin{array}{Q}1\\end{array}"),
+        )
+        for number, (define, use) in enumerate(pairs):
+            with self.subTest(define=define):
+                alone = quire_math.MathRenderer(
+                    ROOT, False, self.root / f"alone{number}"
+                ).render_many([(use, False)])
+                batch = quire_math.MathRenderer(
+                    ROOT, False, self.root / f"batch{number}"
+                ).render_many([(define, False), (use, False)])
+                self.assertEqual(batch[1], alone[0])
+                if number == 0:  # alone it is an error, so a leak would show
+                    self.assertIsNone(alone[0][0])
+
+    def test_repeated_labels_do_not_collide_across_expressions(self):
+        self.write("$$\\label{a} x$$\n\n$$\\label{a} y$$\n")
+        content = self.build(format="html").output.read_text()
+        self.assertEqual(content.count('class="quire-math quire-math-display"'), 2)
+
+    def test_title_math_stays_in_the_page_title(self):
+        self.write("---\ntitle: Energy $E=mc^2$\n---\n\nText\n")
+        content = self.build(format="html").output.read_text()
+        self.assertIn("<title>Energy E=mc^2</title>", content)
+
+    def test_html_without_runtime_keeps_mathml_with_one_warning(self):
+        job = quire.plan_job(
+            str(self.source), profile=None, cwd=self.root, format="html"
+        )
+        errors = io.StringIO()
+        with patch("quire_math.ENGINE_DIR", self.root), \
+                redirect_stdout(io.StringIO()), redirect_stderr(errors):
+            quire.render(job)
+        content = job.output.read_text()
+        self.assertIn("<math", content)
+        self.assertNotIn("quire-math", content)
+        self.assertEqual(errors.getvalue().count("warning:"), 1)
+        self.assertIn("--with-math", errors.getvalue())
+        pdf = quire.plan_job(
+            str(self.source), profile=None, cwd=self.root, format="pdf"
+        )
+        with patch("quire_math.ENGINE_DIR", self.root), \
+                self.assertRaisesRegex(SystemExit, "with-math"):
+            quire.render(pdf)
+
+    def test_fingerprint_covers_mathjax_and_its_font(self):
+        renderer = quire_math.MathRenderer(ROOT, False, self.root / "cache")
+        self.assertRegex(renderer.fingerprint, r"^mathjax-[\d.]+\+newcm-font-[\d.]+$")
+
+    def test_long_inline_math_stays_one_svg(self):
+        terms = " + ".join(f"a_{{{n}}}" for n in range(1, 40))
+        self.source.write_text(f"Long ${terms}$ end.\n", encoding="utf-8")
+        content = self.build(format="html").output.read_text()
+        self.assertEqual(content.count("<svg"), 1)
+
+    def test_no_math_keeps_pandoc_output(self):
+        with patch("quire_math.MathRenderer", side_effect=AssertionError("unexpected")):
+            html = self.build(format="html", no_math=True)
+        content = html.output.read_text()
+        self.assertIn("<math", content)
+        self.assertNotIn("quire-math", content)
+
+    def test_missing_node_gives_installation_hint(self):
+        lookup = shutil.which
+        hide_node = lambda name: None if name == "node" else lookup(name)  # noqa: E731
+        with patch("quire_math.shutil.which", side_effect=hide_node), \
+                self.assertRaisesRegex(SystemExit, "with-math"):
+            self.build(format="pdf")
 
 
 class WeasyPrintAPITests(unittest.TestCase):

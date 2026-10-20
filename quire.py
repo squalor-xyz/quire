@@ -116,6 +116,7 @@ class Job:
     cwd: Path
     format: str = "pdf"
     no_mermaid: bool = False
+    no_math: bool = False
     verbose: bool = False
     mermaid: dict = field(default_factory=dict)
     original_markdown: str = ""
@@ -646,6 +647,7 @@ def plan_job(
     cwd: Path | None = None,
     format: str | None = None,
     no_mermaid: bool = False,
+    no_math: bool = False,
     verbose: bool = False,
     font_check: FontCheck | None = None,
 ) -> Job:
@@ -781,6 +783,7 @@ def plan_job(
         cwd=job_cwd,
         format=output_format,
         no_mermaid=no_mermaid,
+        no_math=no_math,
         verbose=verbose,
         mermaid=mermaid,
         original_markdown=text,
@@ -842,6 +845,31 @@ PAGE_BREAK_CSS = (
     ".quire-page-break { break-after:page; page-break-after:always; } "
     "span.quire-page-break { display:block; height:0; }"
 )
+# Inline math SVG is sized in ex units by the renderer, so it follows the text.
+# Only display math needs layout rules.
+MATH_CSS = (
+    "<style>.quire-math-display { display:block; text-align:center; margin:1em 0; "
+    "break-inside:avoid; page-break-inside:avoid; } "
+    ".quire-math-display > svg { max-width:100%; height:auto; }</style>"
+)
+
+
+def plain_text(node) -> str:
+    """Text of a Pandoc metadata value, with math as its TeX source."""
+    if isinstance(node, list):
+        return "".join(plain_text(child) for child in node)
+    if not isinstance(node, dict):
+        return ""
+    kind, content = node.get("t"), node.get("c")
+    if kind == "Str" or kind == "MetaString":
+        return content
+    if kind in ("Space", "SoftBreak", "LineBreak"):
+        return " "
+    if kind == "Math":
+        return content[1]
+    if kind in ("Code", "RawInline"):
+        return content[1]
+    return plain_text(content)
 
 
 def convert_raw_tex(node, dropped: list[str]) -> None:
@@ -880,6 +908,7 @@ def convert_raw_tex(node, dropped: list[str]) -> None:
 
 def render(job: Job) -> None:
     from quire_html import Resources
+    from quire_math import math_nodes, render_math
     from quire_mermaid import code_blocks, render_blocks, source_locations
 
     pandoc = which_pandoc()
@@ -925,9 +954,21 @@ def render(job: Job) -> None:
             file=sys.stderr,
         )
     has_diagrams = render_blocks(ast, job, "\n".join(css), locations=locations)
+    meta = ast.get("meta", {})
+    title_text = (
+        plain_text(meta["title"])
+        if "title" in meta
+        and "pagetitle" not in meta
+        and any(math_nodes(meta["title"]))
+        else ""
+    )
+    has_math = render_math(ast, job)
     cmd = [pandoc, "-f", "json", "-t", "html5", "--standalone", "--metadata", "lang=en"]
     if "title" not in ast.get("meta", {}) and "pagetitle" not in ast.get("meta", {}):
         cmd.extend(["--metadata", f"pagetitle={job.source.stem}"])
+    elif has_math and title_text.strip():
+        # The title's math is now SVG, which a <title> element cannot hold.
+        cmd.extend(["--metadata", f"pagetitle={title_text}"])
     # An existing stylesheet suppresses Pandoc's default document CSS.
     for path in job.css:
         cmd.append(f"--css={path}")
@@ -950,6 +991,8 @@ def render(job: Job) -> None:
             f".quire-diagram text {{ font-family:{family}; }}</style>"
         )
         document = document.replace("</head>", safety + "\n</head>", 1)
+    if has_math:
+        document = document.replace("</head>", MATH_CSS + "\n</head>", 1)
     if job.format == "html":
         policy = (
             "default-src 'none'; img-src data:; style-src 'unsafe-inline' data:; "
@@ -1161,10 +1204,15 @@ def _parser(
         "--no-mermaid", action="store_true", help="Keep Mermaid diagrams as code blocks"
     )
     parser.add_argument(
+        "--no-math",
+        action="store_true",
+        help="Keep Pandoc's default output for TeX math instead of rendering SVG",
+    )
+    parser.add_argument(
         "-v",
         "--verbose",
         action="store_true",
-        help="Print commands, diagram rendering, and cache hits to stderr",
+        help="Print commands, diagram and math rendering, and cache hits to stderr",
     )
     parser.add_argument(
         "--resource-path",
@@ -1427,6 +1475,7 @@ def main(
             include_before=args.include_before,
             format=args.format,
             no_mermaid=args.no_mermaid,
+            no_math=args.no_math,
             verbose=args.verbose,
             font_check=font_check,
         )

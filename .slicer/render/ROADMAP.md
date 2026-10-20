@@ -14,11 +14,11 @@
 
 - Pandoc option passthrough and watch mode are out of scope for this roadmap. Windows support is deferred (see its later item), not excluded.
 
-19 items · — 1 · done 17 · later 1
+19 items · done 17 · later 1 · started 1
 
 | # | Slice | Title | Size | Effort | Trees | Findings | Status |
 |---|---|---|---|---|---|---|---|
-| 1 | [s12](slices/s12.md) | Render TeX math without a browser or network | L | 3 | core, install | G5 | — |
+| 1 | [s12](slices/s12.md) | Render TeX math without a browser or network | L | 3 | core, install | G5 | started |
 | 2 | s13 | Support Windows | L | 3 | core, install | G5 | later |
 
 ---

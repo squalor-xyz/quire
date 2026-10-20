@@ -81,3 +81,4 @@
 {"when": "2026-10-19T14:35:15Z", "item": "s19", "action": "status", "from": "open", "to": "started", "note": "", "by": "Jon Robbins"}
 {"when": "2026-10-19T15:02:05Z", "item": "s19", "action": "note", "from": "", "to": "", "note": "Verified: black --check and flake8 (new .flake8: 88 cols, E2", "by": "Jon Robbins"}
 {"when": "2026-10-19T15:02:05Z", "item": "s19", "action": "status", "from": "started", "to": "done", "note": "Format-only: quire.py and test_quire.py are black and flake8 clean under a new .flake8 (88 cols); 141 tests unchanged; AST identical modulo docstring whitespace; CONTRIBUTING.md and AGENTS.md document the checks.", "by": "Jon Robbins"}
+{"when": "2026-10-19T15:14:01Z", "item": "s12", "action": "status", "from": "open", "to": "started", "note": "", "by": "Jon Robbins"}
