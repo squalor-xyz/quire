@@ -17,7 +17,8 @@ from unittest.mock import patch
 
 import quire
 import quire_math
-from quire_mermaid import MermaidRenderer, validate_svg
+from quire_common import validate_svg
+from quire_mermaid import MermaidRenderer
 
 ROOT = Path(__file__).parent.resolve()
 

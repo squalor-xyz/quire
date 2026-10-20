@@ -773,8 +773,8 @@
       "id": "s20",
       "title": "Move shared SVG and cache helpers from quire_mermaid into a common module",
       "short_title": "Move shared SVG and cache helpers from quire_mermaid into a common module",
-      "status": "open",
-      "has_slice": false,
+      "status": "done",
+      "has_slice": true,
       "depends_on": [],
       "note_records": [
         {
@@ -783,6 +783,17 @@
           "text": "**2026-10-20** — Found in the s12 relay (architect).",
           "created_at": "2026-10-20T17:01:03Z",
           "attempt": 0,
+          "by": "Jon Robbins",
+          "verified_by": "",
+          "verified_at": "",
+          "stale_after": ""
+        },
+        {
+          "id": "505c0653-175c-4853-9bf1-6e178f7e6109",
+          "kind": "",
+          "text": "**2026-10-20** — Later notes from the s20 relay: pre-existing black/flake8 E501 issues in quire_mermaid.py, test_render.py and test_render_integration.py were left alone to keep the move pure; the cache_directory test sits in MermaidTests (test_render.py:358) and could move to a neutral class; surviving mutants suggest tests for renderer default cache subdirs and a zero-width viewBox in validate_svg; integration tests and a real render were not run for this slice.",
+          "created_at": "2026-10-20T18:30:10Z",
+          "attempt": 1,
           "by": "Jon Robbins",
           "verified_by": "",
           "verified_at": "",
@@ -808,7 +819,7 @@
         "importance": 1,
         "urgency": 1,
         "effort": 2,
-        "attempts": 0
+        "attempts": 1
       }
     },
     {
