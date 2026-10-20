@@ -97,3 +97,4 @@
 {"when": "2026-10-20T17:13:19Z", "item": "s21", "action": "edit", "from": "", "to": "", "note": "Check"}
 {"when": "2026-10-20T17:13:19Z", "item": "s21", "action": "edit", "from": "", "to": "", "note": "Git"}
 {"when": "2026-10-20T18:49:03Z", "item": "s21", "action": "status", "from": "started", "to": "done", "note": "Definitions-only raw TeX of format tex is dropped silently, other raw TeX including {=latex} still warns; 163 tests, black, flake8 clean; HTML render checked, PDF not.", "by": "Jon Robbins"}
+{"when": "2026-10-20T18:54:45Z", "item": "s21", "action": "note", "from": "", "to": "", "note": "Later notes from the s21 relay: L4 without_definitions is qu", "by": "Jon Robbins"}
