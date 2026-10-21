@@ -1946,7 +1946,7 @@ class VersionTests(unittest.TestCase):
             buf
         ):
             quire.main(["--version"])
-        self.assertEqual(buf.getvalue(), "quire 1.1.1\n")
+        self.assertEqual(buf.getvalue(), "quire 1.2.0\n")
 
 
 if __name__ == "__main__":

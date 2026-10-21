@@ -31,7 +31,7 @@ from pathlib import Path
 
 from quire_mermaid import fence_locations, front_matter_end, require_renderer
 
-__version__ = "1.1.1"
+__version__ = "1.2.0"
 
 ENGINE_DIR = Path(__file__).resolve().parent
 PLAIN_CSS = ENGINE_DIR / "plain.css"
