@@ -196,7 +196,18 @@ override it, for example to show a marker in HTML.
 
 Quire drops all other raw TeX from the output and prints one warning per build
 naming a dropped command. The warning names the source document, even when the
-TeX came from a profile include.
+TeX came from a profile include. Raw TeX that only defines macros
+(`\newcommand`, `\renewcommand`, `\providecommand`, `\def`, `\gdef`,
+`\DeclareMathOperator`) is dropped without a warning when Pandoc parsed it from
+the Markdown, because Pandoc has already expanded those macros where the
+Markdown uses them. Raw TeX that is only comments is dropped silently in the same
+case, and a definition followed by `\newpage` still gives a page break. The
+rule does not look at whether the Markdown uses a definition. A definition or
+redefinition of a LaTeX layout command (`\baselinestretch`, `\arraystretch`,
+`\familydefault`, `\rmdefault`, `\sfdefault`, `\ttdefault`, `\linespread`) still
+warns, because it has no effect in the output. A block that mixes definitions with
+other TeX, a definition Quire cannot parse, and raw-attribute blocks such as
+`{=latex}` (where Pandoc does not expand macros) still warn.
 
 ## Use a profile
 
