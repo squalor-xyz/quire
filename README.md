@@ -202,11 +202,12 @@ TeX came from a profile include. Raw TeX that only defines macros
 the Markdown, because Pandoc has already expanded those macros where the
 Markdown uses them. Raw TeX that is only comments is dropped silently in the same
 case, and a definition followed by `\newpage` still gives a page break. The
-rule does not look at whether the Markdown uses a definition, so a redefinition of
-a LaTeX layout command is dropped silently too; it has no effect in the output
-either way. A block that mixes definitions with other TeX, a definition Quire
-cannot parse, and raw-attribute blocks such as `{=latex}` (where Pandoc does not
-expand macros) still warn.
+rule does not look at whether the Markdown uses a definition. A definition or
+redefinition of a LaTeX layout command (`\baselinestretch`, `\arraystretch`,
+`\familydefault`, `\rmdefault`, `\sfdefault`, `\ttdefault`, `\linespread`) still
+warns, because it has no effect in the output. A block that mixes definitions with
+other TeX, a definition Quire cannot parse, and raw-attribute blocks such as
+`{=latex}` (where Pandoc does not expand macros) still warn.
 
 ## Use a profile
 

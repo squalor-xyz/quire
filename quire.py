@@ -849,6 +849,20 @@ DEFINITION_HEAD = re.compile(
     r"|\\g?def\s*\\(?:[A-Za-z@]+|.)(?:#\d)*)\s*",
     re.S,
 )
+# LaTeX layout and preamble commands with no effect in the HTML/PDF path. A
+# definition of one is not a silent macro definition: it keeps its warning.
+LAYOUT_COMMANDS = (
+    "baselinestretch",
+    "arraystretch",
+    "familydefault",
+    "rmdefault",
+    "sfdefault",
+    "ttdefault",
+    "linespread",
+)
+LAYOUT_DEFINITION = re.compile(
+    r"\\[A-Za-z]+\*?\s*\{?\s*\\(?:" + "|".join(LAYOUT_COMMANDS) + r")(?![A-Za-z@])"
+)
 TEX_BRACE = re.compile(r"\\.|[{}]", re.S)
 PAGE_BREAK_CSS = (
     ".quire-page-break { break-after:page; page-break-after:always; } "
@@ -899,7 +913,8 @@ def without_definitions(text: str) -> str:
     i = 0
     while i < len(text):
         head = DEFINITION_HEAD.match(text, i)
-        end = balanced_group(text, head.end()) if head else None
+        silent = head and not LAYOUT_DEFINITION.match(head.group())
+        end = balanced_group(text, head.end()) if silent else None
         if end is not None:
             i = end
         elif text[i] == "%":

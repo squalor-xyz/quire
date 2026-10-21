@@ -6,6 +6,7 @@ import base64
 import io
 import json
 import os
+import re
 import subprocess
 import tempfile
 import unittest
@@ -202,6 +203,92 @@ class RenderTests(unittest.TestCase):
             with self.subTest(text=text):
                 html, sent, errors, _ = self.build_html([{"t": "RawBlock", "c": ["tex", text]}])
                 self.assertEqual(errors.count("warning"), 1)
+
+    def raw_forms(self, text, kind="tex"):
+        """The same raw TeX as a block and as an inline, for subTest loops."""
+        return ([{"t": "RawBlock", "c": [kind, text]}],
+                [{"t": "Para", "c": [{"t": "RawInline", "c": [kind, text]}]}])
+
+    def test_layout_command_definitions_still_warn(self):
+        names = ("baselinestretch", "arraystretch", "familydefault", "rmdefault",
+                 "sfdefault", "ttdefault", "linespread")
+        for name in names:
+            forms = (
+                f"\\renewcommand{{\\{name}}}{{1.5}}", f"\\renewcommand\\{name}{{1.5}}",
+                f"\\renewcommand*{{\\{name}}}{{1.5}}", f"\\renewcommand*  \\{name}{{1.5}}",
+                f"\\renewcommand{{ \\{name} }}{{1.5}}", f"\\newcommand{{\\{name}}}{{1.5}}",
+                f"\\providecommand\\{name}{{1.5}}", f"\\def\\{name}{{1.5}}",
+                f"\\gdef\\{name}{{1.5}}", f"\\def \\{name}{{1.5}}",
+                f"\\DeclareMathOperator{{\\{name}}}{{x}}",
+                f"\\DeclareMathOperator*\\{name}{{x}}",
+                f"\\renewcommand\n{{\\{name}}}{{1.5}}", f"\\renewcommand\n\\{name}{{1.5}}",
+                f"\\renewcommand{{\\{name}}}[1]{{#1}}", f"\\renewcommand{{\\{name}}}[1][2]{{#1}}",
+                f"\\def\\{name}#1{{#1}}", f"\\def\\{name} #1#2{{#1}}",
+            )
+            for text in forms:
+                for blocks in self.raw_forms(text):
+                    with self.subTest(text=text, blocks=blocks):
+                        html, sent, errors, _ = self.build_html(blocks)
+                        self.assertEqual(errors.count("warning"), 1)
+                        head = re.match(r"\\[A-Za-z]+", text).group(0)
+                        self.assertIn(f"including {head})", errors)
+
+    def test_layout_definition_warning_names_the_definition_head(self):
+        for text, command in (
+            ("\\renewcommand{\\baselinestretch}{1.5}", "\\renewcommand"),
+            ("\\def\\arraystretch{1.2}", "\\def"),
+            ("\\DeclareMathOperator{\\linespread}{x}", "\\DeclareMathOperator"),
+        ):
+            with self.subTest(text=text):
+                html, sent, errors, _ = self.build_html([{"t": "RawBlock", "c": ["tex", text]}])
+                self.assertEqual(sent, [])
+                self.assertIn(f"including {command})", errors)
+
+    def test_mixed_ordinary_and_layout_definitions_warn_on_the_first_remaining(self):
+        for text, command in (
+            ("\\newcommand{\\R}{\\mathbb{R}}\n\\renewcommand{\\baselinestretch}{1.5}", "\\renewcommand"),
+            ("\\renewcommand{\\baselinestretch}{1.5}\n\\def\\a{1}\n\\newcommand{\\R}{x}", "\\renewcommand"),
+            ("\\def\\a{1}\n\\def\\familydefault{\\sfdefault}\n\\def\\b{2}", "\\def"),
+            ("\\newcommand{\\R}{x}\n\\def\\arraystretch{2}\n\\vspace{1cm}", "\\def"),
+        ):
+            for blocks in self.raw_forms(text):
+                with self.subTest(text=text, blocks=blocks):
+                    html, sent, errors, _ = self.build_html(blocks)
+                    self.assertEqual(errors.count("warning"), 1)
+                    self.assertIn(f"including {command})", errors)
+
+    def test_only_the_layout_definition_is_kept_in_a_mixed_block(self):
+        text = "\\newcommand{\\R}{x}\n\\textbf{y}\n\\def\\a{1}"
+        self.assertEqual(quire.without_definitions(text), "\\textbf{y}")
+        text = "\\newcommand{\\R}{x}\n\\renewcommand{\\baselinestretch}{1.5}\n\\def\\a{1}"
+        self.assertEqual(quire.without_definitions(text), "\\renewcommand{\\baselinestretch}{1.5}")
+
+    def test_similar_names_and_layout_names_in_bodies_stay_silent(self):
+        for text in (
+            "\\renewcommand{\\baselinestretchx}{1.5}", "\\renewcommand\\rmdefaults{x}",
+            "\\def\\linespreadfoo{1}", "\\newcommand{\\arraystretch@}{1}",
+            "\\newcommand{\\baselinestretches}{1}", "\\DeclareMathOperator{\\ttdefaultx}{x}",
+            "\\newcommand{\\a}{\\baselinestretch}", "\\def\\a{\\renewcommand\\arraystretch{2}}",
+            "\\newcommand{\\a}[1]{\\linespread{#1}}", "\\providecommand{\\a}{\\def\\familydefault{x}}",
+            "\\DeclareMathOperator{\\a}{\\rmdefault}", "\\gdef\\a{\\sfdefault}",
+        ):
+            for blocks in self.raw_forms(text):
+                with self.subTest(text=text, blocks=blocks):
+                    html, sent, errors, _ = self.build_html(blocks)
+                    self.assertEqual(errors, "")
+
+    def test_layout_commands_still_warn(self):
+        for text, command in (
+            ("\\setlength{\\parindent}{0pt}", "\\setlength"),
+            ("\\geometry{margin=1in}", "\\geometry"),
+            ("\\linespread{1.3}", "\\linespread"),
+            ("\\setlength{\\parskip}{1em}\n\\def\\a{1}", "\\setlength"),
+        ):
+            for blocks in self.raw_forms(text):
+                with self.subTest(text=text, blocks=blocks):
+                    html, sent, errors, _ = self.build_html(blocks)
+                    self.assertEqual(errors.count("warning"), 1)
+                    self.assertIn(f"including {command})", errors)
 
     def test_raw_tex_in_metadata_is_dropped_with_warning(self):
         raw = {"t": "RawInline", "c": ["tex", "\\usepackage{x}"]}
