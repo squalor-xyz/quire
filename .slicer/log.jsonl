@@ -108,3 +108,4 @@
 {"when": "2026-10-20T17:15:19Z", "item": "s20", "action": "edit", "from": "", "to": "", "note": "Check"}
 {"when": "2026-10-20T18:15:32Z", "item": "s20", "action": "status", "from": "started", "to": "done", "note": "Moved SVG_NS, validate_svg, prefix_svg and a shared cache_directory(name) into quire_common.py; quire_mermaid and quire_math import from it; tests, AGENTS.md and CONTRIBUTING.md updated; 158 unit tests, black and flake8 clean; no behavior change; integration tests and real render not run", "by": "Jon Robbins"}
 {"when": "2026-10-20T18:30:10Z", "item": "s20", "action": "note", "from": "", "to": "", "note": "Later notes from the s20 relay: pre-existing black/flake8 E5", "by": "Jon Robbins"}
+{"when": "2026-10-21T00:50:53Z", "item": "s21", "action": "note", "from": "", "to": "", "note": "Narrowing (owner M2) verified: definitions of \\baselinestret", "by": "Jon Robbins"}

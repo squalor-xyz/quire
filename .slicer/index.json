@@ -851,6 +851,17 @@
           "verified_by": "",
           "verified_at": "",
           "stale_after": ""
+        },
+        {
+          "id": "078edca7-72b7-4642-b7e1-7d5d69c9c1d5",
+          "kind": "",
+          "text": "**2026-10-21** — Narrowing (owner M2) verified: definitions of \\baselinestretch, \\arraystretch, \\familydefault, \\rmdefault, \\sfdefault, \\ttdefault, \\linespread (LAYOUT_COMMANDS) via \\newcommand/\\renewcommand/\\providecommand/\\def/\\gdef/\\DeclareMathOperator (star, braces, spacing variants) warn again as dropped raw TeX; ordinary definitions stay silent; \\setlength, \\geometry, \\linespread{..} already warned and still do. README and CHANGELOG updated. 170 tests OK, black and flake8 clean, mutations caught, gate PASS. Later notes: README says a definition followed by \\newpage still gives a page break, which is only true for silent definitions (layout definition plus \\newpage warns and loses the break, as on main); test name test_only_the_layout_definition_is_kept_in_a_mixed_block slightly misleading.",
+          "created_at": "2026-10-21T00:50:53Z",
+          "attempt": 1,
+          "by": "Jon Robbins",
+          "verified_by": "",
+          "verified_at": "",
+          "stale_after": ""
         }
       ],
       "claim": null,

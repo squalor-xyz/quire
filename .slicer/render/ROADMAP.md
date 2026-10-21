@@ -14,33 +14,33 @@
 
 - Pandoc option passthrough and watch mode are out of scope for this roadmap. Windows support is deferred (see its later item), not excluded.
 
-21 items · — 1 · done 19 · later 1
+21 items · done 20 · later 1
 
 | # | Slice | Title | Size | Effort | Trees | Findings | Status |
 |---|---|---|---|---|---|---|---|
 | 1 | s13 | Support Windows | L | 3 | core, install | G5 | later |
-| 2 | s20 | Move shared SVG and cache helpers from quire_mermaid into a common module | S | 2 | core | discovered from s12 | — |
 
 ---
 
 | # | Slice | Title | Size | Effort | Trees | Findings | Status |
 |---|---|---|---|---|---|---|---|
-| 3 | [s01](slices/s01.md) | Guard against overwriting the source | S | 1 | core | G1 | done |
-| 4 | [s02](slices/s02.md) | Pick the WeasyPrint worker interpreter correctly | M | 2 | core | G2 | done |
-| 5 | [s03](slices/s03.md) | Reject install.py --python without --skip-venv | S | 1 | install | G2 | done |
-| 6 | [s04](slices/s04.md) | Detect YAML front matter like Pandoc | M | 2 | core | G1 | done |
-| 7 | [s05](slices/s05.md) | Add quire default to set or clear the default profile | M | 2 | install | G3 | done |
-| 8 | [s06](slices/s06.md) | Add quire remove to unregister a profile | M | 2 | install | G3 | done |
-| 9 | [s07](slices/s07.md) | Build several documents in one call | M | 2 | core | G4 | done |
-| 10 | [s10](slices/s10.md) | Turn \newpage and \pagebreak into page breaks | S | 1 | core | G5 | done |
-| 11 | [s11](slices/s11.md) | Append stylesheets after the selected CSS | S | 1 | core | G5 | done |
-| 12 | [s08](slices/s08.md) | Render plain-text input verbatim | M | 2 | core | G5 | done |
-| 13 | [s09](slices/s09.md) | Fail when a profile's required font is missing | M | 2 | core | G5 | done |
-| 14 | [s12](slices/s12.md) | Render TeX math without a browser or network | L | 3 | core, install | G5 | done |
-| 15 | [s14](slices/s14.md) | Say where profiles are looked up and how to register one when a --config name is unknown | S | 1 | core |  | done |
-| 16 | [s15](slices/s15.md) | Check for the Mermaid renderer before building starts | S | 1 | core |  | done |
-| 17 | [s16](slices/s16.md) | Let a caller prefer a named profile without requiring it | S | 1 | core |  | done |
-| 18 | s17 | Reject an empty --config name instead of ignoring it | S | 1 | core | discovered from s16 | done |
-| 19 | [s18](slices/s18.md) | Treat a whitespace-only --config name as empty | S | 1 | core | discovered from s17 | done |
-| 20 | s19 | Bring quire.py and test_quire.py to black and flake8 clean | M | 2 | core | discovered from s17 | done |
+| 2 | [s01](slices/s01.md) | Guard against overwriting the source | S | 1 | core | G1 | done |
+| 3 | [s02](slices/s02.md) | Pick the WeasyPrint worker interpreter correctly | M | 2 | core | G2 | done |
+| 4 | [s03](slices/s03.md) | Reject install.py --python without --skip-venv | S | 1 | install | G2 | done |
+| 5 | [s04](slices/s04.md) | Detect YAML front matter like Pandoc | M | 2 | core | G1 | done |
+| 6 | [s05](slices/s05.md) | Add quire default to set or clear the default profile | M | 2 | install | G3 | done |
+| 7 | [s06](slices/s06.md) | Add quire remove to unregister a profile | M | 2 | install | G3 | done |
+| 8 | [s07](slices/s07.md) | Build several documents in one call | M | 2 | core | G4 | done |
+| 9 | [s10](slices/s10.md) | Turn \newpage and \pagebreak into page breaks | S | 1 | core | G5 | done |
+| 10 | [s11](slices/s11.md) | Append stylesheets after the selected CSS | S | 1 | core | G5 | done |
+| 11 | [s08](slices/s08.md) | Render plain-text input verbatim | M | 2 | core | G5 | done |
+| 12 | [s09](slices/s09.md) | Fail when a profile's required font is missing | M | 2 | core | G5 | done |
+| 13 | [s12](slices/s12.md) | Render TeX math without a browser or network | L | 3 | core, install | G5 | done |
+| 14 | [s14](slices/s14.md) | Say where profiles are looked up and how to register one when a --config name is unknown | S | 1 | core |  | done |
+| 15 | [s15](slices/s15.md) | Check for the Mermaid renderer before building starts | S | 1 | core |  | done |
+| 16 | [s16](slices/s16.md) | Let a caller prefer a named profile without requiring it | S | 1 | core |  | done |
+| 17 | s17 | Reject an empty --config name instead of ignoring it | S | 1 | core | discovered from s16 | done |
+| 18 | [s18](slices/s18.md) | Treat a whitespace-only --config name as empty | S | 1 | core | discovered from s17 | done |
+| 19 | s19 | Bring quire.py and test_quire.py to black and flake8 clean | M | 2 | core | discovered from s17 | done |
+| 20 | [s20](slices/s20.md) | Move shared SVG and cache helpers from quire_mermaid into a common module | S | 2 | core | discovered from s12 | done |
 | 21 | [s21](slices/s21.md) | Don't warn on dropped raw TeX that only defines macros Pandoc already expanded | S | 1 | core | G5 · discovered from s12 | done |
