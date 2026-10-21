@@ -1,0 +1,41 @@
+{
+  "id": "s23",
+  "title": "Write Windows launchers and native install locations",
+  "lead": [
+    "Second child of s13. Makes `install.py` produce working `quire` and\n`<name>-pdf` commands on Windows."
+  ],
+  "depends_note": null,
+  "findings_note": "",
+  "size": "M",
+  "flags": [],
+  "trees_note": "install",
+  "trees_plural": false,
+  "boundary": "**Not in this slice:**",
+  "sections": [
+    {
+      "heading": "Why",
+      "body": "The installer has three POSIX assumptions:\n\n- It writes `/bin/sh` launchers and marks them executable with chmod.\n- It defaults to `~/.local/bin`, which is never on PATH on Windows, and it uses\n  the `.venv/bin/python` interpreter.\n- It detects its own launchers with a POSIX `exec` line parser.\n\nIts config directory must also match the one s22 chooses for quire.py."
+    },
+    {
+      "heading": "Files",
+      "body": "install.py (launcher_text, is_launcher, write_text, default_config_dir,\ndefault_bin_dir, ensure_venv, the PATH hint in register_config, and the\n--bin-dir default in the argument parser), test_quire.py (installer tests),\nREADME.md (Windows install section), docs/profiles.md if it names launcher paths."
+    },
+    {
+      "heading": "Failing tests",
+      "body": "With `os.name` patched to \"nt\":\n\n- `launcher_text` produces a `.cmd` file that sets `QUIRE_PROG`, quotes paths\n  with spaces, and forwards all arguments. The profile form adds\n  `--config <name>`.\n- `is_launcher` recognizes exactly what `launcher_text` wrote and rejects a\n  user-edited file.\n- The quire and `<name>-pdf` launchers are written as `quire.cmd` and\n  `<name>-pdf.cmd`, with no chmod.\n- `default_bin_dir()` is `%LOCALAPPDATA%/Programs/quire` when quire is not on\n  PATH.\n- `default_config_dir()` is `%APPDATA%/quire`, and XDG still overrides it.\n- `ensure_venv` uses `.venv/Scripts/python.exe`.\n- The PATH hint shows a PowerShell or `setx`-style command, not `export`.\n\nThe POSIX tests stay green, unchanged."
+    },
+    {
+      "heading": "Implement",
+      "body": "- Branch on `os.name == \"nt\"` in each function listed under Files.\n- Keep install.py independent of quire.py, as it is today. Duplicate the small\n  directory logic and add a comment pointing at its quire.py twin.\n- The `.cmd` body is `@echo off`, `set \"QUIRE_PROG=...\"`, then\n  `\"<python>\" \"<quire.py>\" [--config name] %*`.\n- Profile registration still stores paths and does not change `default`.\n- Do not run the real installer as a check."
+    },
+    {
+      "heading": "Check",
+      "body": "python3 test_quire.py; black --check quire.py test_quire.py; flake8 quire.py test_quire.py"
+    },
+    {
+      "heading": "Git",
+      "body": "Do not commit; orchestrator handles it."
+    }
+  ],
+  "notes": []
+}

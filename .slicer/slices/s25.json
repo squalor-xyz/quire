@@ -1,0 +1,41 @@
+{
+  "id": "s25",
+  "title": "Add a Windows CI job and Windows install docs",
+  "lead": [
+    "Fourth child of s13. Proves the unit suite on a real Windows runner and\ndocuments installation."
+  ],
+  "depends_note": null,
+  "findings_note": "",
+  "size": "S",
+  "flags": [],
+  "trees_note": "core, install",
+  "trees_plural": true,
+  "boundary": "**Not in this slice:**",
+  "sections": [
+    {
+      "heading": "Why",
+      "body": "The children before this one verify their Windows branches by patching\n`os.name`. Only a real Windows run catches what patching cannot, such as path\nseparators, CRLF and file locking. Without docs, Windows users cannot get Pango,\nGTK and Pandoc in place."
+    },
+    {
+      "heading": "Files",
+      "body": ".github/workflows/test.yml, test_quire.py and test_render.py (only POSIX-only\nfixtures such as `#!/bin/sh` fakes, which get skipped or made portable),\nREADME.md, AGENTS.md (the Windows note under Behavior to preserve), CHANGELOG.md."
+    },
+    {
+      "heading": "Failing tests",
+      "body": "- Add a `windows-latest` job running `python test_quire.py` with Python 3.11 or\n  newer and `shell: bash`. It must go green.\n- Tests that need POSIX semantics carry a\n  `skipIf(os.name == \"nt\", reason)` that states why. No test is skipped on\n  POSIX."
+    },
+    {
+      "heading": "Implement",
+      "body": "- Add the CI job, matching the existing fetch steps.\n- Make each failing fixture portable, or skip it with a reason.\n- Add a README section for Windows: Pandoc via its MSI or winget, the GTK and\n  Pango runtime via MSYS2 as WeasyPrint's docs describe, then\n  `py install.py`, the `.cmd` launchers in `%LOCALAPPDATA%\\Programs\\quire`, and\n  adding that directory to PATH."
+    },
+    {
+      "heading": "Check",
+      "body": "python3 test_quire.py; black --check quire.py test_quire.py; flake8 quire.py test_quire.py; the windows-latest CI job is green."
+    },
+    {
+      "heading": "Git",
+      "body": "Do not commit; orchestrator handles it."
+    }
+  ],
+  "notes": []
+}

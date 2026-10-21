@@ -2,7 +2,7 @@
   "version": 9,
   "id_prefix": "s",
   "id_width": 2,
-  "next_id": 22,
+  "next_id": 26,
   "preamble": "",
   "passes": [],
   "items": [
@@ -422,9 +422,14 @@
       "id": "s13",
       "title": "Support Windows",
       "short_title": "Support Windows",
-      "status": "later",
-      "has_slice": false,
-      "depends_on": [],
+      "status": "parked",
+      "has_slice": true,
+      "depends_on": [
+        "s22",
+        "s23",
+        "s24",
+        "s25"
+      ],
       "note_records": [],
       "claim": null,
       "fields": {
@@ -884,6 +889,136 @@
         "urgency": 1,
         "effort": 1,
         "attempts": 1
+      }
+    },
+    {
+      "id": "s22",
+      "title": "Resolve Windows venv, encodings and user directories in the render path",
+      "short_title": "Windows render path",
+      "status": "parked",
+      "has_slice": true,
+      "depends_on": [],
+      "note_records": [],
+      "claim": null,
+      "fields": {
+        "size": "M",
+        "flags": [],
+        "trees": [
+          "core"
+        ],
+        "trees_literal": false,
+        "findings": "",
+        "discovered_from": "s13",
+        "parent": "",
+        "cites": [],
+        "key": "",
+        "pass": "",
+        "group": "",
+        "reason": "",
+        "importance": 1,
+        "urgency": 1,
+        "effort": 2,
+        "attempts": 0
+      }
+    },
+    {
+      "id": "s23",
+      "title": "Write Windows launchers and native install locations",
+      "short_title": "Windows installer",
+      "status": "parked",
+      "has_slice": true,
+      "depends_on": [
+        "s22"
+      ],
+      "note_records": [],
+      "claim": null,
+      "fields": {
+        "size": "M",
+        "flags": [],
+        "trees": [
+          "install"
+        ],
+        "trees_literal": false,
+        "findings": "",
+        "discovered_from": "s13",
+        "parent": "",
+        "cites": [],
+        "key": "",
+        "pass": "",
+        "group": "",
+        "reason": "",
+        "importance": 1,
+        "urgency": 1,
+        "effort": 2,
+        "attempts": 0
+      }
+    },
+    {
+      "id": "s24",
+      "title": "Run the optional Mermaid and MathJax renderers on Windows",
+      "short_title": "Windows optional renderers",
+      "status": "parked",
+      "has_slice": true,
+      "depends_on": [
+        "s22",
+        "s23"
+      ],
+      "note_records": [],
+      "claim": null,
+      "fields": {
+        "size": "M",
+        "flags": [],
+        "trees": [
+          "install",
+          "core"
+        ],
+        "trees_literal": false,
+        "findings": "",
+        "discovered_from": "s13",
+        "parent": "",
+        "cites": [],
+        "key": "",
+        "pass": "",
+        "group": "",
+        "reason": "",
+        "importance": 1,
+        "urgency": 1,
+        "effort": 2,
+        "attempts": 0
+      }
+    },
+    {
+      "id": "s25",
+      "title": "Add a Windows CI job and Windows install docs",
+      "short_title": "Windows CI and docs",
+      "status": "parked",
+      "has_slice": true,
+      "depends_on": [
+        "s22",
+        "s23"
+      ],
+      "note_records": [],
+      "claim": null,
+      "fields": {
+        "size": "S",
+        "flags": [],
+        "trees": [
+          "core",
+          "install"
+        ],
+        "trees_literal": false,
+        "findings": "",
+        "discovered_from": "s13",
+        "parent": "",
+        "cites": [],
+        "key": "",
+        "pass": "",
+        "group": "",
+        "reason": "",
+        "importance": 1,
+        "urgency": 1,
+        "effort": 1,
+        "attempts": 0
       }
     }
   ],

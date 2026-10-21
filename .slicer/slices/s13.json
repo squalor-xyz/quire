@@ -1,0 +1,42 @@
+{
+  "id": "s13",
+  "title": "Support Windows",
+  "lead": [
+    "Umbrella slice. The work runs in four child slices, s22 to s25. s13 closes when\nthey are done and a real Windows render has been checked. Decisions made on\n2026-10-20:",
+    "- Windows directories: config in `%APPDATA%\\quire`, cache in\n  `%LOCALAPPDATA%\\quire\\cache`, and launchers in\n  `%LOCALAPPDATA%\\Programs\\quire`. `XDG_*` variables still win when set.\n- Launchers are `.cmd` files.\n- WeasyPrint stays a pip install in `.venv`, with the GTK and Pango runtime\n  installed separately."
+  ],
+  "depends_note": null,
+  "findings_note": "G5",
+  "size": "L",
+  "flags": [],
+  "trees_note": "core, install",
+  "trees_plural": true,
+  "boundary": "**Not in this slice:**",
+  "sections": [
+    {
+      "heading": "Why",
+      "body": "Quire runs only on macOS and Linux today. It assumes the `.venv/bin` layout,\n`/bin/sh` launchers, `~/.config` and `~/.cache`, the locale encoding for\nsubprocess output, and Homebrew library paths. Windows users\ncannot install or run it."
+    },
+    {
+      "heading": "Files",
+      "body": "The children own the files: s22 the render path (quire.py, quire_common.py, and\nthe encoding in quire_math.py and quire_mermaid.py), s23 install.py, s24 the\noptional renderers (install.py npm calls, the .mjs workers), and s25 CI, test\nportability and docs. s13 itself changes no files."
+    },
+    {
+      "heading": "Failing tests",
+      "body": "None of its own; each child carries its tests. Acceptance for s13 is a manual\ncheck on a Windows host: `py install.py`, then `quire` renders a sample\nMarkdown file to PDF and HTML with non-ASCII text. A registered profile's\n`<name>-pdf.cmd` launcher also works."
+    },
+    {
+      "heading": "Implement",
+      "body": "Run s22, then s23. s24 and s25 can then run in parallel, because their files\nare disjoint apart from README.md, which is resolved when landing. Platform\nchecks use `os.name == \"nt\"` and are patched in tests. POSIX behavior and the\nCLI selection order do not change.\n\nOut of scope:\n\n- WeasyPrint's standalone executable\n- a pip or pipx package, or any other packaging change\n- PowerShell launchers\n- WSL, which already works as Linux"
+    },
+    {
+      "heading": "Check",
+      "body": "Every child is done. The windows-latest CI job is green. The manual Windows\nrender above passes, or is reported as unverified with what is missing."
+    },
+    {
+      "heading": "Git",
+      "body": "Do not commit; orchestrator handles it."
+    }
+  ],
+  "notes": []
+}

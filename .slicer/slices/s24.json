@@ -1,0 +1,41 @@
+{
+  "id": "s24",
+  "title": "Run the optional Mermaid and MathJax renderers on Windows",
+  "lead": [
+    "Third child of s13. Covers `--with-mermaid` and `--with-math` setup and their\nbuild-time renderers on Windows."
+  ],
+  "depends_note": null,
+  "findings_note": "",
+  "size": "M",
+  "flags": [],
+  "trees_note": "install, core",
+  "trees_plural": true,
+  "boundary": "**Not in this slice:**",
+  "sections": [
+    {
+      "heading": "Why",
+      "body": "On Windows, npm is `npm.cmd`, and Puppeteer's Chromium and the locked runtimes\nresolve paths differently. Without this slice, a Windows user either cannot\ninstall the optional renderers or gets failures at build time. Keep this\nseparate from s22 and s23 so the core Windows path can land first."
+    },
+    {
+      "heading": "Files",
+      "body": "install.py (require_node, ensure_mermaid, ensure_math: the npm and node\ninvocations), quire_mermaid.py and quire_math.py (the renderer startup and\nmanifest paths), mermaid-render.mjs and mathjax-render.mjs (only where a POSIX\npath or file URL is assumed), test_render.py, README.md (optional renderer\nnotes)."
+    },
+    {
+      "heading": "Failing tests",
+      "body": "With `os.name` patched to \"nt\":\n\n- The installer calls npm through the path that `shutil.which(\"npm\")` resolves,\n  which is `npm.cmd`, with no `shell=True`. Node's version check is unchanged.\n- Each renderer finds its locked runtime manifest under the checkout using\n  Windows paths.\n- The Node workers receive paths they can turn into file URLs. Test this with\n  `pathToFileURL` in the .mjs files, or with a Python-side test of the argument\n  they receive."
+    },
+    {
+      "heading": "Implement",
+      "body": "- Use the resolved `npm.cmd` path directly. Python's `subprocess` runs `.cmd`\n  files through cmd.exe, and its argument quoting is safe for these fixed\n  arguments. Do not add `shell=True`.\n- Audit both .mjs workers for `'/'` path joins and bare `file://` string\n  building, and use `node:path` and `pathToFileURL` throughout.\n- No new dependencies and no network at build time. Setup stays behind the\n  explicit `--with-mermaid` and `--with-math` options."
+    },
+    {
+      "heading": "Check",
+      "body": "python3 test_quire.py; black --check quire.py test_quire.py; flake8 quire.py test_quire.py. A real Windows run of test_render_integration.py is needed for acceptance; report it as unverified if no Windows host is available."
+    },
+    {
+      "heading": "Git",
+      "body": "Do not commit; orchestrator handles it."
+    }
+  ],
+  "notes": []
+}

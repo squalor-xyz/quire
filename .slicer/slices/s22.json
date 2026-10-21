@@ -1,0 +1,41 @@
+{
+  "id": "s22",
+  "title": "Resolve Windows venv, encodings and user directories in the render path",
+  "lead": [
+    "First child of s13. Makes `quire.py` and the renderer modules run on Windows\nwithout changing POSIX behavior. Platform checks use `os.name == \"nt\"` and tests\npatch it, so the unit suite proves the Windows branches on macOS and Linux."
+  ],
+  "depends_note": null,
+  "findings_note": "",
+  "size": "M",
+  "flags": [],
+  "trees_note": "core",
+  "trees_plural": false,
+  "boundary": "**Not in this slice:**",
+  "sections": [
+    {
+      "heading": "Why",
+      "body": "The render path assumes POSIX in four places. On Windows they fail or produce\nwrong output, and this blocks every other part of s13:\n\n- The venv layout is `.venv/Scripts/*.exe`, not `.venv/bin/*`\n  (`resolve_weasyprint`, `weasyprint_python`, `pandoc_env`).\n- `subprocess.run(text=True)` decodes with the locale code page (often cp1252),\n  so non-ASCII Pandoc and Node output turns into mojibake.\n- Config and cache sit under `~/.config` and `~/.cache`, which are not native\n  Windows locations.\n- `os.replace` onto a PDF that a viewer holds open fails with a bare\n  `PermissionError`."
+    },
+    {
+      "heading": "Files",
+      "body": "quire.py (resolve_weasyprint, weasyprint_python, pandoc_env, _run and the\nsubprocess call near line 372, user_config_path, the os.replace near line 1088,\nand the module docstring's venv commands), quire_common.py (cache_directory),\nquire_math.py and quire_mermaid.py (only their subprocess encoding),\ntest_quire.py, test_render.py, README.md (config and cache locations)."
+    },
+    {
+      "heading": "Failing tests",
+      "body": "- With `os.name` patched to \"nt\", `resolve_weasyprint` finds\n  `.venv/Scripts/weasyprint.exe`, and `weasyprint_python` pairs it with\n  `.venv/Scripts/python.exe`.\n- A WeasyPrint on PATH whose sibling is `python.exe` resolves to that\n  interpreter.\n- `pandoc_env` prepends a `Scripts` parent to PATH, as it does for `bin`.\n- Every `subprocess.run(..., text=True)` in quire.py, quire_math.py and\n  quire_mermaid.py passes `encoding=\"utf-8\"`. Test this through the mocked\n  calls, not by grepping the source.\n- On \"nt\" without XDG variables, `user_config_path()` is\n  `%APPDATA%/quire/config.toml` and `cache_directory(\"math\")` is\n  `%LOCALAPPDATA%/quire/cache/math`. When `XDG_CONFIG_HOME` or `XDG_CACHE_HOME`\n  is set, it still wins.\n- When `os.replace` onto the output raises `PermissionError`, Quire exits with a\n  message that names the output file and says it may be open in another\n  program.\n- The existing POSIX tests stay green, unchanged."
+    },
+    {
+      "heading": "Implement",
+      "body": "- Add one small helper in quire.py for the venv executable path (`bin/<name>`, or\n  `Scripts/<name>.exe` on nt) and use it in each of the three call sites.\n- Extend the sibling-interpreter fallback in `weasyprint_python` to `python.exe`.\n- Add `encoding=\"utf-8\"` alongside `text=True` in each subprocess call.\n- Choose the Windows directories from `APPDATA` and `LOCALAPPDATA`, keeping the\n  XDG override first.\n- Catch `PermissionError` around the final `os.replace`.\n- Leave the Homebrew `DYLD_FALLBACK_LIBRARY_PATH` branch as it is; it is a no-op\n  on Windows.\n- Do not touch install.py; s23 owns it."
+    },
+    {
+      "heading": "Check",
+      "body": "python3 test_quire.py; black --check quire.py test_quire.py; flake8 quire.py test_quire.py"
+    },
+    {
+      "heading": "Git",
+      "body": "Do not commit; orchestrator handles it."
+    }
+  ],
+  "notes": []
+}

@@ -109,3 +109,14 @@
 {"when": "2026-10-20T18:15:32Z", "item": "s20", "action": "status", "from": "started", "to": "done", "note": "Moved SVG_NS, validate_svg, prefix_svg and a shared cache_directory(name) into quire_common.py; quire_mermaid and quire_math import from it; tests, AGENTS.md and CONTRIBUTING.md updated; 158 unit tests, black and flake8 clean; no behavior change; integration tests and real render not run", "by": "Jon Robbins"}
 {"when": "2026-10-20T18:30:10Z", "item": "s20", "action": "note", "from": "", "to": "", "note": "Later notes from the s20 relay: pre-existing black/flake8 E5", "by": "Jon Robbins"}
 {"when": "2026-10-21T00:50:53Z", "item": "s21", "action": "note", "from": "", "to": "", "note": "Narrowing (owner M2) verified: definitions of \\baselinestret", "by": "Jon Robbins"}
+{"when": "2026-10-21T01:26:24Z", "item": "s22", "action": "add", "from": "", "to": "open", "note": "Resolve Windows venv, encodings and user directories in the render path"}
+{"when": "2026-10-21T01:26:24Z", "item": "s23", "action": "add", "from": "", "to": "open", "note": "Write Windows launchers and native install locations"}
+{"when": "2026-10-21T01:26:24Z", "item": "s24", "action": "add", "from": "", "to": "open", "note": "Run the optional Mermaid and MathJax renderers on Windows"}
+{"when": "2026-10-21T01:26:24Z", "item": "s25", "action": "add", "from": "", "to": "open", "note": "Add a Windows CI job and Windows install docs"}
+{"when": "2026-10-21T01:26:24Z", "item": "s13", "action": "promote", "from": "", "to": "", "note": ""}
+{"when": "2026-10-21T01:26:28Z", "item": "s13", "action": "set", "from": "", "to": "", "note": "depends_on -→s22,s23,s24,s25"}
+{"when": "2026-10-21T01:30:32Z", "item": "s13", "action": "status", "from": "later", "to": "parked", "note": "Windows support on hold (owner, 2026-10-20)"}
+{"when": "2026-10-21T01:30:32Z", "item": "s22", "action": "status", "from": "open", "to": "parked", "note": "Windows support on hold (owner, 2026-10-20)"}
+{"when": "2026-10-21T01:30:32Z", "item": "s23", "action": "status", "from": "open", "to": "parked", "note": "Windows support on hold (owner, 2026-10-20)"}
+{"when": "2026-10-21T01:30:32Z", "item": "s24", "action": "status", "from": "open", "to": "parked", "note": "Windows support on hold (owner, 2026-10-20)"}
+{"when": "2026-10-21T01:30:32Z", "item": "s25", "action": "status", "from": "open", "to": "parked", "note": "Windows support on hold (owner, 2026-10-20)"}
