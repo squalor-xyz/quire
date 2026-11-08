@@ -227,22 +227,171 @@ def resolve_profile_dir(profile: Path) -> Path:
     return profile
 
 
+PDF_LIB_PACKAGES = (
+    "libpango-1.0-0",
+    "libpangoft2-1.0-0",
+    "libpangocairo-1.0-0",
+    "libharfbuzz0b",
+)
+_APT_INST = re.compile(r"^Inst (\S+) (?:\[.*?\] )?\(")
+
+
+def apt_packages_to_fetch(simulation: str) -> list[str]:
+    """Package names apt would newly install or upgrade, in simulation order."""
+    found = []
+    for line in simulation.splitlines():
+        match = _APT_INST.match(line)
+        if match and match.group(1) not in found:
+            found.append(match.group(1))
+    return found
+
+
+def classify_weasy_import(stderr: str, returncode: int) -> str:
+    """Turn an ``import weasyprint`` result into ok, missing, native, or error."""
+    if returncode == 0:
+        return "ok"
+    if "ModuleNotFoundError" in stderr and "weasyprint" in stderr:
+        return "missing"
+    native = (
+        "cannot load library" in stderr
+        or "cannot open shared object file" in stderr
+    )
+    if native:
+        return "native"
+    return "error"
+
+
+def pdf_library_env(base: dict[str, str] | None = None) -> dict[str, str]:
+    """Environment with vendored Pango libraries ahead of the system path."""
+    import quire
+
+    env = os.environ.copy() if base is None else base.copy()
+    libs = quire.pdf_library_path()
+    if libs:
+        previous = env.get("LD_LIBRARY_PATH", "")
+        env["LD_LIBRARY_PATH"] = libs + (os.pathsep + previous if previous else "")
+    return env
+
+
+def import_weasyprint(python: Path) -> tuple[str, str]:
+    """Import WeasyPrint with the vendored library path. Return status and stderr."""
+    result = subprocess.run(
+        [str(python), "-c", "import weasyprint"],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.PIPE,
+        text=True,
+        env=pdf_library_env(),
+    )
+    status = classify_weasy_import(result.stderr, result.returncode)
+    return status, result.stderr
+
+
+def native_library_hint() -> str:
+    """How to get Pango when the installer cannot unpack it locally."""
+    packages = " ".join(PDF_LIB_PACKAGES)
+    if sys.platform == "darwin":
+        return "brew install pango gdk-pixbuf libffi"
+    if shutil.which("apt-get"):
+        return f"sudo apt-get install {packages}"
+    if shutil.which("dnf"):
+        return "sudo dnf install pango harfbuzz"
+    return "install Pango, PangoFT2, and HarfBuzz for WeasyPrint"
+
+
+def _first_line(detail: str) -> str:
+    for line in detail.splitlines():
+        if line.strip():
+            return line.strip()
+    return detail.strip()
+
+
+def native_library_error(detail: str) -> SystemExit:
+    return SystemExit(
+        "error: WeasyPrint cannot load Pango (needed for PDF).\n"
+        f"{native_library_hint()}\n"
+        f"{_first_line(detail)}"
+    )
+
+
+def provision_pdf_libs() -> bool:
+    """Unpack Debian/Ubuntu Pango packages into ``.venv/pdf-libs``.
+
+    Returns False when this machine has no apt, or apt reports nothing to
+    install. Raises SystemExit when apt cannot download or extract them.
+    """
+    if shutil.which("apt-get") is None or shutil.which("dpkg-deb") is None:
+        return False
+    simulation = subprocess.run(
+        ["apt-get", "-s", "install", "--no-install-recommends", *PDF_LIB_PACKAGES],
+        capture_output=True,
+        text=True,
+    )
+    if simulation.returncode != 0:
+        message = simulation.stderr.strip() or simulation.stdout.strip()
+        raise SystemExit(f"error: could not resolve PDF libraries:\n{message}")
+    packages = apt_packages_to_fetch(simulation.stdout)
+    if not packages:
+        return False
+    dest = APP_DIR / ".venv" / "pdf-libs"
+    debs = APP_DIR / ".scratch" / "pdf-debs"
+    if debs.exists():
+        shutil.rmtree(debs)
+    debs.mkdir(parents=True)
+    try:
+        downloaded = subprocess.run(
+            ["apt-get", "download", *packages],
+            cwd=debs,
+            capture_output=True,
+            text=True,
+        )
+        if downloaded.returncode != 0:
+            message = downloaded.stderr.strip() or downloaded.stdout.strip()
+            raise SystemExit(f"error: could not download PDF libraries:\n{message}")
+        archives = sorted(debs.glob("*.deb"))
+        if len(archives) < len(packages):
+            raise SystemExit(
+                "error: apt downloaded "
+                f"{len(archives)} of {len(packages)} PDF libraries"
+            )
+        dest.mkdir(parents=True, exist_ok=True)
+        for archive in archives:
+            subprocess.run(["dpkg-deb", "-x", str(archive), str(dest)], check=True)
+    finally:
+        shutil.rmtree(debs, ignore_errors=True)
+    return True
+
+
 def ensure_venv(python: Path | None) -> Path:
-    """Return the venv interpreter, creating it and installing WeasyPrint if needed."""
+    """Return the venv interpreter, creating it and installing WeasyPrint if needed.
+
+    A failed import used to mean "pip install WeasyPrint" even when the package
+    was present and only Pango was missing. That reinstall cannot add the
+    shared libraries. On Debian and Ubuntu those are unpacked into
+    ``.venv/pdf-libs`` instead of being installed system-wide.
+    """
     if python is not None:
         return python
     venv_python = APP_DIR / ".venv" / "bin" / "python"
     if not venv_python.is_file():
-        subprocess.run([sys.executable, "-m", "venv", str(APP_DIR / ".venv")], check=True)
-    check = subprocess.run(
-        [str(venv_python), "-c", "import weasyprint"],
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
-    )
-    if check.returncode != 0:
+        subprocess.run(
+            [sys.executable, "-m", "venv", str(APP_DIR / ".venv")], check=True
+        )
+    status, detail = import_weasyprint(venv_python)
+    if status == "missing":
         subprocess.run(
             [str(venv_python), "-m", "pip", "install", "-r", str(REQUIREMENTS)],
             check=True,
+        )
+        status, detail = import_weasyprint(venv_python)
+    if status == "native":
+        if not provision_pdf_libs():
+            raise native_library_error(detail)
+        status, detail = import_weasyprint(venv_python)
+    if status != "ok":
+        if status == "native":
+            raise native_library_error(detail)
+        raise SystemExit(
+            "error: WeasyPrint is not usable.\n" + _first_line(detail)
         )
     return venv_python
 
@@ -370,8 +519,9 @@ def install(
         )
     if shutil.which("pandoc") is None:
         print(
-            "pandoc was not found. PDF builds need it:\n"
-            "  brew install pandoc pango gdk-pixbuf libffi",
+            "pandoc was not found. PDF and HTML builds need it:\n"
+            "  macOS: brew install pandoc\n"
+            "  Debian/Ubuntu: sudo apt-get install pandoc",
             file=sys.stderr,
         )
 

@@ -355,6 +355,102 @@ class RenderTests(unittest.TestCase):
         self.assertEqual(job.output.read_text(), "previous output")
         self.assertIn("running:", errors.getvalue())
 
+    def test_vendored_pango_precedes_existing_library_path(self):
+        engine = self.root / "engine"
+        lib = engine / ".venv" / "pdf-libs" / "usr" / "lib" / "triplet"
+        lib.mkdir(parents=True)
+        (lib / "libpango-1.0.so.0").write_bytes(b"")
+        with patch("quire.ENGINE_DIR", engine), patch.dict(
+            os.environ, {"LD_LIBRARY_PATH": "/system/lib"}
+        ):
+            env = quire.pandoc_env("/usr/bin/weasyprint")
+        parts = env["LD_LIBRARY_PATH"].split(os.pathsep)
+        self.assertEqual(parts[0], str(lib))
+        self.assertIn("/system/lib", parts)
+
+    def test_missing_vendored_pango_leaves_library_path(self):
+        engine = self.root / "engine"
+        with patch("quire.ENGINE_DIR", engine), patch.dict(
+            os.environ, {"LD_LIBRARY_PATH": "/system/lib"}
+        ):
+            env = quire.pandoc_env("/usr/bin/weasyprint")
+        self.assertEqual(env["LD_LIBRARY_PATH"], "/system/lib")
+
+    def test_apt_simulation_lists_new_and_upgraded_packages(self):
+        text = (
+            "NOTE: This is only a simulation!\n"
+            "Inst libpango-1.0-0 (1.52 Ubuntu:24.04/noble [arm64])\n"
+            "Inst libharfbuzz0b [8.0] (8.3 Ubuntu:24.04/noble [arm64])\n"
+            "Inst libpango-1.0-0 (1.52 Ubuntu:24.04/noble [arm64])\n"
+        )
+        self.assertEqual(
+            install.apt_packages_to_fetch(text),
+            ["libpango-1.0-0", "libharfbuzz0b"],
+        )
+
+    def test_weasyprint_import_failure_is_classified(self):
+        native = "cannot load library 'libpango-1.0-0': cannot open shared object file"
+        missing = "ModuleNotFoundError: No module named 'weasyprint'"
+        self.assertEqual(install.classify_weasy_import("", 0), "ok")
+        self.assertEqual(install.classify_weasy_import(missing, 1), "missing")
+        self.assertEqual(install.classify_weasy_import(native, 1), "native")
+        self.assertEqual(install.classify_weasy_import("SyntaxError: bad", 1), "error")
+
+    def test_missing_pango_fetches_libraries_instead_of_reinstalling(self):
+        python = self.root / ".venv" / "bin" / "python"
+        python.parent.mkdir(parents=True)
+        python.write_text("", encoding="utf-8")
+        seen = []
+
+        def probe(_python):
+            seen.append("probe")
+            if len(seen) == 1:
+                return "native", "cannot load library 'libpango-1.0-0'"
+            return "ok", ""
+
+        with patch("install.APP_DIR", self.root), \
+                patch("install.import_weasyprint", side_effect=probe), \
+                patch("install.provision_pdf_libs", return_value=True) as provision, \
+                patch("install.subprocess.run") as run:
+            install.ensure_venv(None)
+        provision.assert_called_once()
+        run.assert_not_called()
+
+    def test_missing_weasyprint_package_still_uses_pip(self):
+        python = self.root / ".venv" / "bin" / "python"
+        python.parent.mkdir(parents=True)
+        python.write_text("", encoding="utf-8")
+        seen = []
+
+        def probe(_python):
+            seen.append("probe")
+            if len(seen) == 1:
+                return "missing", "ModuleNotFoundError: No module named 'weasyprint'"
+            return "ok", ""
+
+        with patch("install.APP_DIR", self.root), \
+                patch("install.import_weasyprint", side_effect=probe), \
+                patch("install.provision_pdf_libs") as provision, \
+                patch("install.subprocess.run") as run:
+            install.ensure_venv(None)
+        provision.assert_not_called()
+        self.assertEqual(run.call_args.args[0][1:4], ["-m", "pip", "install"])
+
+    def test_unpackable_pango_names_the_system_packages(self):
+        python = self.root / ".venv" / "bin" / "python"
+        python.parent.mkdir(parents=True)
+        python.write_text("", encoding="utf-8")
+        def which(name):
+            return "/usr/bin/apt-get" if name == "apt-get" else None
+
+        with patch("install.APP_DIR", self.root), \
+                patch("install.import_weasyprint", return_value=("native", "cannot load library")), \
+                patch("install.provision_pdf_libs", return_value=False), \
+                patch("install.shutil.which", side_effect=which), \
+                patch("install.sys.platform", "linux"):
+            with self.assertRaisesRegex(SystemExit, "sudo apt-get install libpango-1.0-0"):
+                install.ensure_venv(None)
+
     def test_mermaid_installer_is_explicit_and_project_local(self):
         with patch("install.shutil.which", side_effect=lambda name: f"/tools/{name}"), \
                 patch("install.subprocess.run", return_value=subprocess.CompletedProcess([], 0, "v22.13.0\n")) as run:

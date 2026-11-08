@@ -25,8 +25,12 @@ settings. If that directory is not on PATH, add this to your shell configuration
 export PATH="$HOME/.local/bin:$PATH"
 ```
 
-On other systems, install Pandoc and WeasyPrint's native libraries for your
-platform before running the Python installer.
+On Debian and Ubuntu, `python3 install.py` checks that WeasyPrint can load
+Pango. When the system libraries are missing, it downloads Pango, HarfBuzz, and
+their library dependencies with apt and unpacks them into `.venv/pdf-libs`.
+PDF builds put that directory on `LD_LIBRARY_PATH`. Nothing is installed
+system-wide, and this step does not need root. On other systems, install Pandoc
+and WeasyPrint's native libraries for your platform before running the installer.
 
 For Mermaid diagrams, also provide Node 22.13 or newer and npm, then run:
 

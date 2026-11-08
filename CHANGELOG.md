@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- On Debian and Ubuntu, `python3 install.py` unpacks Pango, HarfBuzz, and their library dependencies into `.venv/pdf-libs` when WeasyPrint cannot load them. PDF builds search that directory. This does not install packages system-wide. A missing WeasyPrint package is still installed with pip; a missing Pango library no longer triggers that reinstall. The missing-tool message names the macOS and Debian commands separately.
+
 ## 1.2.0
 
 - Stop warning about dropped raw TeX that only defines macros. Pandoc expands macros defined in the Markdown (`\newcommand`, `\renewcommand`, `\providecommand`, `\def`, `\gdef`, `\DeclareMathOperator`) into the math that uses them but still passes the definition on as raw TeX (format `tex`), so a correct document got a spurious warning. A block, inline, or metadata value of that kind made only of such definitions, or only of comments, is dropped silently, whether or not the Markdown uses the definitions. A definition followed by `\newpage` still gives a page break. A definition or redefinition of a layout command that has no effect in the output (`\baselinestretch`, `\arraystretch`, `\familydefault`, `\rmdefault`, `\sfdefault`, `\ttdefault`, `\linespread`) is not silent and still warns. Any other raw TeX still warns, including a block that mixes definitions with other TeX (the warning names the first command outside the silent definitions), a definition that does not parse, and raw-attribute blocks (`{=latex}`), where Pandoc does not expand macros.

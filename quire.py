@@ -41,14 +41,19 @@ PLAIN_CONFIDENTIAL_BANNER = '<div class="confidential-banner">Confidential</div>
 INSTALL_HELP = """
 Missing tools for PDF build.
 
-  1) Pandoc + native libs (macOS):
+  1) Pandoc, and WeasyPrint's libraries (macOS):
        brew install pandoc pango gdk-pixbuf libffi
 
-  2) WeasyPrint in a local venv next to quire.py:
+  2) On Debian and Ubuntu, from this checkout:
+       python3 install.py
+     When Pango is not installed, that downloads it into .venv/pdf-libs.
+     It does not install packages system-wide.
+
+  3) WeasyPrint in a local venv next to quire.py:
        python3 -m venv .venv
        .venv/bin/pip install -r requirements.txt
 
-  3) Run:
+  4) Run:
        .venv/bin/python quire.py path/to/foo.md
 
 Or install the quire command: python3 install.py
@@ -791,6 +796,15 @@ def plan_job(
     )
 
 
+def pdf_library_path() -> str:
+    """Directories of Pango libraries unpacked by the installer, if any."""
+    root = ENGINE_DIR / ".venv" / "pdf-libs"
+    if not root.is_dir():
+        return ""
+    dirs = sorted({path.parent for path in root.rglob("libpango-1.0.so.0")})
+    return os.pathsep.join(str(path) for path in dirs)
+
+
 def pandoc_env(weasy: str) -> dict[str, str]:
     env = os.environ.copy()
     weasy_path = Path(weasy)
@@ -804,6 +818,10 @@ def pandoc_env(weasy: str) -> dict[str, str]:
         env["DYLD_FALLBACK_LIBRARY_PATH"] = str(brew_lib) + (
             os.pathsep + prev if prev else ""
         )
+    libs = pdf_library_path()
+    if libs:
+        previous = env.get("LD_LIBRARY_PATH", "")
+        env["LD_LIBRARY_PATH"] = libs + (os.pathsep + previous if previous else "")
     return env
 
 
